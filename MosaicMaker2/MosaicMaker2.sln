@@ -5,6 +5,10 @@ VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MosaicMaker2", "MosaicMaker2\MosaicMaker2.csproj", "{0120A75D-14DD-44FA-B636-30E236DA542D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageStats", "ImageStats\ImageStats.csproj", "{B0D06FFC-118F-4652-AB53-42357835E349}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastBitmap", "FastBitmap\FastBitmap.csproj", "{E3D0314D-0D40-477F-B693-D22C96DA6D84}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{0120A75D-14DD-44FA-B636-30E236DA542D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0120A75D-14DD-44FA-B636-30E236DA542D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0120A75D-14DD-44FA-B636-30E236DA542D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0D06FFC-118F-4652-AB53-42357835E349}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0D06FFC-118F-4652-AB53-42357835E349}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0D06FFC-118F-4652-AB53-42357835E349}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0D06FFC-118F-4652-AB53-42357835E349}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3D0314D-0D40-477F-B693-D22C96DA6D84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3D0314D-0D40-477F-B693-D22C96DA6D84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3D0314D-0D40-477F-B693-D22C96DA6D84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3D0314D-0D40-477F-B693-D22C96DA6D84}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
