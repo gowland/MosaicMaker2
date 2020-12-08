@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -50,9 +51,9 @@ namespace MosaicMaker2
 
 //            class1.CompareImageToAlphabet(physicalImage, new ImageManipulationInfo(0, 0, 40, 30));
 
-            var edge = class1.GetMidResConvolution(physicalImage);
-//            edge.Save(@"C:\src\MosaicMaker2.png");
-            EdgeDetectedBitmap = edge.ToBitmapImage();
+            var convolutionImages = class1.GetMidResConvolution(physicalImage).Select(bm => bm.ToBitmapImage());
+            ConvolutionImages =
+                new ReadOnlyObservableCollection<BitmapImage>(new ObservableCollection<BitmapImage>(convolutionImages));
 
         }
 
@@ -61,7 +62,7 @@ namespace MosaicMaker2
             Console.WriteLine(string.Join(", ", arr));
         }
 
-        public BitmapImage EdgeDetectedBitmap { get; set; }
+        public ReadOnlyObservableCollection<BitmapImage> ConvolutionImages { get; set; }
 
 
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
@@ -87,6 +88,8 @@ namespace MosaicMaker2
 
             return retval;
         }
+
+        public BitmapImage SourceImage { get; set; }
     }
 
     public static class BitmapExtensions

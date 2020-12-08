@@ -7,6 +7,15 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <Image Source="{Binding EdgeDetectedBitmap}"></Image>
+        <Image Height="100" Width="100" Source="{Binding SourceImage}"></Image>
+        <ListBox ItemsSource="{Binding ConvolutionImages }">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="OrangeRed" BorderThickness="1">
+                        <Image Height="100" Width="100" Source="{Binding}"></Image>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
     </Grid>
 </Window>

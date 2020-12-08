@@ -42,7 +42,7 @@ namespace ImageStats
             0, -1, -2, 
         };
 
-        public Bitmap GetMidResConvolution(PhysicalImage physicalImage)
+        public IEnumerable<Bitmap> GetMidResConvolution(PhysicalImage physicalImage)
         {
             int GetConvolution(IEnumerable<int> convolutionPixels, double[] filter)
             {
@@ -81,7 +81,13 @@ namespace ImageStats
             }
             bitmap.Unlock();
 
-            return convolution135Result.ToBitmap();
+            return new []{
+                convolution135Result.ToBitmap(),
+                convolution45Result.ToBitmap(),
+                convolutionHorizontalResult.ToBitmap(),
+                convolutionVerticalResult.ToBitmap(),
+                convolutionEdgeResult.ToBitmap(),
+            };
         }
 
         private IEnumerable<int> GetConvolutionPixels(FastBitmap.FastBitmap bitmap, Func<Color,int> colorToIntFunc, Rectangle rectangle)
