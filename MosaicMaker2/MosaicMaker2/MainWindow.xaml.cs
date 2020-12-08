@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -26,35 +28,56 @@ namespace MosaicMaker2
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly MainWindowViewModel _mainWindowViewModel;
+
         public MainWindow()
         {
             InitializeComponent();
-            var vm = new MainWindowViewModel();
-            DataContext = vm;
-            vm.DumpStats();
+            _mainWindowViewModel = new MainWindowViewModel();
+            DataContext = _mainWindowViewModel;
+            next.Click += (sender, args) => _mainWindowViewModel.DumpStats();
         }
     }
 
-    public class MainWindowViewModel
+    public class MainWindowViewModel : INotifyPropertyChanged
     {
+        private static readonly ObservableCollection<BitmapImage> ConvolutionObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
+        private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
+        private static readonly Class1 class1 = new Class1();
+
+        public MainWindowViewModel()
+        {
+            ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
+            MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
+        }
+
         public void DumpStats()
         {
-            var sourceImg = @"C:\src\MosaicMaker2\Alphabet\2004_Photos\100_0052.bmp";
-            Class1 class1 = new Class1();
-            var physicalImage = new PhysicalImage(sourceImg);
+            var img = class1.GetRandom();
+            
+            DumpArr(img.Stats.LowResR.Values);
+            DumpArr(img.Stats.LowResG.Values);
+            DumpArr(img.Stats.LowResB.Values);
+            DumpArr(img.Stats.LowResIntensity.Values);
 
-            var imageStats = class1.GetStats(physicalImage, new ImageManipulationInfo(0, 0, 40, 30));
-            DumpArr(imageStats.LowResR.Values);
-            DumpArr(imageStats.LowResG.Values);
-            DumpArr(imageStats.LowResB.Values);
-            DumpArr(imageStats.LowResIntensity.Values);
+            SourceImage = class1.GetBitmap(img.Image).ToBitmapImage();
+            OnPropertyChanged(nameof(SourceImage));
 
-//            class1.CompareImageToAlphabet(physicalImage, new ImageManipulationInfo(0, 0, 40, 30));
+            var convolutionImages = class1.GetMidResConvolution(img.Image).Select(bm => bm.ToBitmapImage());
+            ConvolutionObservableCollection.Clear();
+            foreach (var convolutionImage in convolutionImages)
+            {
+                ConvolutionObservableCollection.Add(convolutionImage);
+            }
 
-            var convolutionImages = class1.GetMidResConvolution(physicalImage).Select(bm => bm.ToBitmapImage());
-            ConvolutionImages =
-                new ReadOnlyObservableCollection<BitmapImage>(new ObservableCollection<BitmapImage>(convolutionImages));
-
+            var matchedImages = class1.CompareImageToAlphabet(img.Image, new ImageManipulationInfo(0, 0, 40, 30))
+                .Select(i => i.ToBitmapImage());
+            MatchesObservableCollection.Clear();
+            foreach (var matchedImage in matchedImages)
+            {
+                MatchesObservableCollection.Add(matchedImage);
+            }
+            OnPropertyChanged(nameof(MatchingImages));
         }
 
         private void DumpArr(int[] arr)
@@ -63,33 +86,15 @@ namespace MosaicMaker2
         }
 
         public ReadOnlyObservableCollection<BitmapImage> ConvolutionImages { get; set; }
-
-
-        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
-        public static extern bool DeleteObject(IntPtr hObject);
-
-        private BitmapImage Bitmap2BitmapImage(Bitmap bitmap)
-        {
-            IntPtr hBitmap = bitmap.GetHbitmap();
-            BitmapImage retval;
-
-            try
-            {
-                retval = (BitmapImage)Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap,
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-            }
-            finally
-            {
-                DeleteObject(hBitmap);
-            }
-
-            return retval;
-        }
-
+        public ReadOnlyObservableCollection<BitmapImage> MatchingImages { get; set; }
         public BitmapImage SourceImage { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     public static class BitmapExtensions

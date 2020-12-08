@@ -7,12 +7,33 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <Image Height="100" Width="100" Source="{Binding SourceImage}"></Image>
-        <ListBox ItemsSource="{Binding ConvolutionImages }">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Image Height="100" Width="100" Source="{Binding SourceImage}"/>
+        <Button x:Name="next" Grid.Row="0" Grid.Column="1">Next</Button>
+
+        <ListBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding ConvolutionImages}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="OrangeRed" BorderThickness="1">
-                        <Image Height="100" Width="100" Source="{Binding}"></Image>
+                        <Image Height="100" Width="100" Source="{Binding}"/>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <ListBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding MatchingImages}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="OrangeRed" BorderThickness="1">
+                        <Image Height="100" Width="100" Source="{Binding}"/>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>

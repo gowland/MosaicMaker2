@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
+using System.Runtime.Remoting.Messaging;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
@@ -32,15 +33,37 @@ namespace ImageStats
            -1, -2, -1, 
         };
         private static readonly double[] midRes45Filter = new double[] {
-            0,  1,  2, 
-           -1,  0,  1, 
-           -2, -1,  0, 
+           -1, -1,  2, 
+           -1,  2, -1, 
+            2, -1, -1, 
         };
         private static readonly double[] midRes135Filter = new double[] {
-            2,  1,  0, 
-            1,  0, -1, 
-            0, -1, -2, 
+            2, -1, -1, 
+           -1,  2, -1, 
+           -1, -1, -2, 
         };
+
+        private readonly IEnumerable<ImageAndStats> _imagesAndStats;
+        private readonly Random _random = new Random();
+
+        public Class1()
+        {
+
+            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet")
+                .Select(p => new ImageAndStats(p, GetStats(p, new ImageManipulationInfo(0, 0, 40, 30))))
+                .ToArray();
+        }
+
+        public ImageAndStats GetRandom()
+        {
+            return _imagesAndStats.OrderBy(_ => _random.Next()).First();
+        }
+
+        public Bitmap GetBitmap(PhysicalImage physicalImage)
+        {
+            return Loader.LoadImage(physicalImage.ImagePath).ToBitmap();
+        }
+
 
         public IEnumerable<Bitmap> GetMidResConvolution(PhysicalImage physicalImage)
         {
@@ -126,7 +149,7 @@ namespace ImageStats
             }
         }
 
-        public void CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
             var filter = new CompoundFilterBuilder()
                 .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResR, "LowResRed")
@@ -135,12 +158,11 @@ namespace ImageStats
                 .WithConvolutionResultFilter(diff => diff < 25, result => result.LowResIntensity, "LowResIntensity")
                 .Build();
             var origStats = GetStats(image, manipulationInfo);
-            foreach (var replacementImage in GetFiles(@"c:\src\MosaicMaker2\Alphabet"))
+            foreach (var replacement in _imagesAndStats)
             {
-                var replacementStats = GetStats(replacementImage, manipulationInfo);
-                if (filter.Compare(origStats, replacementStats).Passed)
+                if (filter.Compare(origStats, replacement.Stats).Passed)
                 {
-                    Console.WriteLine(replacementImage.ImagePath);
+                    yield return Loader.LoadImage(replacement.Image.ImagePath).ToBitmap();
                 }
             }
         }
@@ -512,4 +534,15 @@ namespace ImageStats
         }
     }
 
+    public class ImageAndStats
+    {
+        public ImageAndStats(PhysicalImage image, ImageStats stats)
+        {
+            Image = image;
+            Stats = stats;
+        }
+
+        public PhysicalImage Image { get; private set; }
+        public ImageStats Stats { get; private set; }
+    }
 }
