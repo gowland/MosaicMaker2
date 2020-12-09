@@ -36,6 +36,8 @@ namespace MosaicMaker2
             _mainWindowViewModel = new MainWindowViewModel();
             DataContext = _mainWindowViewModel;
             next.Click += (sender, args) => _mainWindowViewModel.DumpStats();
+            load.Click += (sender, args) => _mainWindowViewModel.LoadIndex();
+            create.Click += (sender, args) => _mainWindowViewModel.CreateIndex();
         }
     }
 
@@ -50,6 +52,9 @@ namespace MosaicMaker2
             ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
         }
+
+        public void LoadIndex() => class1.LoadIndex();
+        public void CreateIndex() => class1.CreateIndex();
 
         public void DumpStats()
         {

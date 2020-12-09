@@ -17,6 +17,8 @@ namespace ImageStats
 {
     public class Class1
     {
+        private const string _pathToAlphabet = @"c:\src\MosaicMaker2\Alphabet\2004_Photos";
+        private const string _indexFileName = @"segment_stats.json";
         private static readonly IncrediblyInefficientImageLoader Loader = new IncrediblyInefficientImageLoader();
         private static readonly double[] lowResSingleIntFilter = new double[] {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
 
@@ -46,7 +48,7 @@ namespace ImageStats
            -1, -1,  2, 
         };
 
-        private readonly ImageAndStats[] _imagesAndStats;
+        private ImageAndStats[] _imagesAndStats;
         private readonly Random _random = new Random();
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
@@ -54,8 +56,7 @@ namespace ImageStats
 
         public Class1()
         {
-
-            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet\2004_Photos")
+            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet\")
                 .Select(GetMatchableSegments)
                 .ToArray();
             Serializer.WriteToJsonFile(@"c:\src\MosaicMaker2\Alphabet\segment_stats.json", new Alphabet(_imagesAndStats));
@@ -80,6 +81,20 @@ namespace ImageStats
                 .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResB, "LowResBlue")
                 .WithConvolutionResultFilter(diff => diff < 25, result => result.LowResIntensity, "LowResIntensity")
                 .Build();
+        }
+
+        public void CreateIndex()
+        {
+            _imagesAndStats = GetFiles(_pathToAlphabet)
+                .Select(GetMatchableSegments)
+                .ToArray();
+            Serializer.WriteToJsonFile<Alphabet>(Path.Combine(_pathToAlphabet, _indexFileName), new Alphabet(_imagesAndStats));
+        }
+
+        public void LoadIndex()
+        {
+            Alphabet alphabet = Serializer.ReadFromJsonFile<Alphabet>(Path.Combine(_pathToAlphabet, _indexFileName));
+            _imagesAndStats = alphabet.ImagesAndStats;
         }
 
         private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
@@ -580,7 +595,7 @@ namespace ImageStats
             ImagePath = imagePath;
         }
 
-        public string ImagePath { get; }
+        public string ImagePath { get; set; }
     }
 
     [Serializable]
@@ -594,10 +609,10 @@ namespace ImageStats
             Height = height;
         }
 
-        public int StartX { get; }
-        public int StartY { get; }
-        public int Width { get; }
-        public int Height { get; }
+        public int StartX { get; set; }
+        public int StartY { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
     }
 
     [Serializable]
@@ -620,7 +635,7 @@ namespace ImageStats
         {
             Values = values.ToArray();
         }
-        public int[] Values { get; }
+        public int[] Values { get; set; }
     }
 
     public static class ConvolutionResultExtensions
@@ -645,7 +660,7 @@ namespace ImageStats
     }
 
     [Serializable]
-    public class ImageAndStats
+    public struct ImageAndStats
     {
         public ImageAndStats(PhysicalImage image, ImageManipulationInfo manipulationInfo, ImageStats stats)
             : this (image, new []{new SegmentAndStats(manipulationInfo, stats), })
@@ -655,14 +670,15 @@ namespace ImageStats
         public ImageAndStats(PhysicalImage image, IEnumerable<SegmentAndStats> segments)
         {
             Image = image;
-            Segments = segments;
+            Segments = segments.ToArray();
         }
 
-        public PhysicalImage Image { get; }
-        public IEnumerable<SegmentAndStats> Segments { get; }
+        public PhysicalImage Image { get; set; }
+        public SegmentAndStats[] Segments { get; set; }
     }
 
-    public class SegmentAndStats
+    [Serializable]
+    public struct SegmentAndStats
     {
         public SegmentAndStats(ImageManipulationInfo manipulationInfo, ImageStats stats)
         {
@@ -670,8 +686,8 @@ namespace ImageStats
             Stats = stats;
         }
 
-        public ImageManipulationInfo ManipulationInfo { get; }
-        public ImageStats Stats { get; }
+        public ImageManipulationInfo ManipulationInfo { get; set; }
+        public ImageStats Stats { get; set; }
     }
 
     public static class Serializer
@@ -816,6 +832,6 @@ namespace ImageStats
             ImagesAndStats = imagesAndStats;
         }
 
-        public ImageAndStats[] ImagesAndStats { get; }
+        public ImageAndStats[] ImagesAndStats { get; set; }
     }
 }

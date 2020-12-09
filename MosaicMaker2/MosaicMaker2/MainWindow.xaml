@@ -17,7 +17,13 @@
         </Grid.ColumnDefinitions>
 
         <Image Height="100" Width="100" Source="{Binding SourceImage}"/>
-        <Button x:Name="next" Grid.Row="0" Grid.Column="1">Next</Button>
+
+        <StackPanel Grid.Row="0" Grid.Column="1">
+            <Button x:Name="next">Next</Button>
+            <Rectangle Fill="Aquamarine" Height="2" Width="100" Margin="5,0"/>
+            <Button x:Name="load">Load</Button>
+            <Button x:Name="create">Create</Button>
+        </StackPanel>
 
         <ListBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding ConvolutionImages}">
             <ListBox.ItemTemplate>
