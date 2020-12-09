@@ -9,5 +9,10 @@ namespace FastBitmap
             var bitmap = (Bitmap)Image.FromFile(imagePath);
             return new FastBitmap(bitmap);
         }
+
+        public Bitmap LoadImageAsBitmap(string imagePath)
+        {
+            return (Bitmap)Image.FromFile(imagePath);
+        }
     }
 }

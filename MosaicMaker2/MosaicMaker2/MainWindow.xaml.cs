@@ -54,13 +54,9 @@ namespace MosaicMaker2
         public void DumpStats()
         {
             var img = class1.GetRandom();
-            
-            DumpArr(img.Stats.LowResR.Values);
-            DumpArr(img.Stats.LowResG.Values);
-            DumpArr(img.Stats.LowResB.Values);
-            DumpArr(img.Stats.LowResIntensity.Values);
 
-            SourceImage = class1.GetBitmap(img.Image).ToBitmapImage();
+            var firstSegment = new ImageManipulationInfo(0, 0, 40, 30);
+            SourceImage = class1.GetBitmap(img.Image, firstSegment).ToBitmapImage();
             OnPropertyChanged(nameof(SourceImage));
 
             var convolutionImages = class1.GetMidResConvolution(img.Image).Select(bm => bm.ToBitmapImage());
@@ -70,7 +66,7 @@ namespace MosaicMaker2
                 ConvolutionObservableCollection.Add(convolutionImage);
             }
 
-            var matchedImages = class1.CompareImageToAlphabet(img.Image, new ImageManipulationInfo(0, 0, 40, 30))
+            var matchedImages = class1.CompareImageToAlphabet(img.Image, firstSegment)
                 .Select(i => i.ToBitmapImage());
             MatchesObservableCollection.Clear();
             foreach (var matchedImage in matchedImages)

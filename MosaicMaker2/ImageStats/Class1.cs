@@ -8,7 +8,10 @@ using System.Runtime.Remoting.Messaging;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Serialization;
 using FastBitmap;
+using Newtonsoft.Json;
 
 namespace ImageStats
 {
@@ -43,7 +46,7 @@ namespace ImageStats
            -1, -1,  2, 
         };
 
-        private readonly IEnumerable<ImageAndStats> _imagesAndStats;
+        private readonly ImageAndStats[] _imagesAndStats;
         private readonly Random _random = new Random();
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
@@ -52,13 +55,10 @@ namespace ImageStats
         public Class1()
         {
 
-            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet")
-                .Select(p =>
-                {
-                    var imageManipulationInfo = new ImageManipulationInfo(0, 0, 40, 30);
-                    return new ImageAndStats(p, imageManipulationInfo, GetStats(p, imageManipulationInfo));
-                })
+            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet\2004_Photos")
+                .Select(GetMatchableSegments)
                 .ToArray();
+            Serializer.WriteToJsonFile(@"c:\src\MosaicMaker2\Alphabet\segment_stats.json", new Alphabet(_imagesAndStats));
 
             _laxColorFilter = new CompoundFilterBuilder()
                 .WithConvolutionResultFilter(diff => diff < 40, result => result.LowResR, "LowResRed")
@@ -82,6 +82,22 @@ namespace ImageStats
                 .Build();
         }
 
+        private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
+        {
+            var img = Loader.LoadImage(physicalImage.ImagePath);
+            IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
+            var segmentStats = new List<SegmentAndStats>();
+            foreach (var rectangle in rects)
+            {
+                var imageManipulationInfo = new ImageManipulationInfo(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+                ImageStats imageStats = GetStats(physicalImage,
+                    imageManipulationInfo);
+                segmentStats.Add(new SegmentAndStats(imageManipulationInfo, imageStats));
+            }
+
+            return new ImageAndStats(physicalImage, segmentStats);
+        }
+
         public ImageAndStats GetRandom()
         {
             return _imagesAndStats.OrderBy(_ => _random.Next()).First();
@@ -90,6 +106,19 @@ namespace ImageStats
         public Bitmap GetBitmap(PhysicalImage physicalImage)
         {
             return Loader.LoadImage(physicalImage.ImagePath).ToBitmap();
+        }
+
+        public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
+        {
+            var img = Loader.LoadImageAsBitmap(physicalImage.ImagePath);
+            var bmp = new Bitmap(manipulationInfo.Width, manipulationInfo.Height);
+            FastBitmap.FastBitmap segment = new FastBitmap.FastBitmap(bmp);
+            segment.Lock();
+            segment.CopyRegion(img, 
+                new Rectangle(manipulationInfo.StartX, manipulationInfo.StartY, manipulationInfo.Width, manipulationInfo.Height),
+                new Rectangle(0, 0, manipulationInfo.Width, manipulationInfo.Height));
+            segment.Unlock();
+            return bmp;
         }
 
 
@@ -180,22 +209,14 @@ namespace ImageStats
         public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
             var origStats = GetStats(image, manipulationInfo);
-/*
-            foreach (var replacement in _imagesAndStats)
-            {
-                if (filter.Compare(origStats, replacement.Stats).Passed)
-                {
-                    yield return Loader.LoadImage(replacement.Image.ImagePath).ToBitmap();
-                }
-            }
-*/
+
             ImageAndStats[] matches = _imagesAndStats.ToArray();
 
             IFilter[] filters = {_laxColorFilter, _midColorFilter, _strictColorFilter};
 
             foreach (var filter in filters)
             {
-                if (matches.Count() > 10)
+                if (matches.Length > 10)
                 {
                     var newMatches = Filter(origStats, matches, filter).ToArray();
                     if (newMatches.Length > 1)
@@ -205,12 +226,39 @@ namespace ImageStats
                 }
             }
 
-            return matches.Select(r => Loader.LoadImage(r.Image.ImagePath).ToBitmap());
+            return matches.SelectMany(r =>
+            {
+                return r.Segments.Select(s => GetBitmap(r.Image, s.ManipulationInfo));
+/*
+                Bitmap img = Loader.LoadImageAsBitmap(r.Image.ImagePath);
+                var bmp = new Bitmap(r.ManipulationInfo.Width, r.ManipulationInfo.Height);
+                FastBitmap.FastBitmap segment = new FastBitmap.FastBitmap(bmp);
+                segment.Lock();
+                segment.CopyRegion(img, 
+                    new Rectangle(r.ManipulationInfo.StartX, r.ManipulationInfo.StartY, r.ManipulationInfo.Width,
+                        r.ManipulationInfo.Height),
+                    new Rectangle(0, 0, r.ManipulationInfo.Width, r.ManipulationInfo.Height));
+                segment.Unlock();
+                return bmp;
+*/
+            });
         }
 
         private IEnumerable<ImageAndStats> Filter(ImageStats origStats, IEnumerable<ImageAndStats> images, IFilter filter)
         {
             foreach (var replacement in images)
+            {
+                var matchingSegments = FilterSegments(origStats, replacement, filter).ToArray();
+                if (matchingSegments.Any())
+                {
+                    yield return new ImageAndStats(replacement.Image, matchingSegments);
+                }
+            }
+        }
+
+        private IEnumerable<SegmentAndStats> FilterSegments(ImageStats origStats, ImageAndStats imageAndStats, IFilter filter)
+        {
+            foreach (var replacement in imageAndStats.Segments)
             {
                 if (filter.Compare(origStats, replacement.Stats).Passed)
                 {
@@ -230,7 +278,7 @@ namespace ImageStats
         public ImageStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
             global::FastBitmap.FastBitmap bitmap = Loader.LoadImage(image.ImagePath);
-            var sourceRectangle = new Rectangle(manipulationInfo.StartX, manipulationInfo.StartZ, manipulationInfo.Width, manipulationInfo.Height);
+            var sourceRectangle = new Rectangle(manipulationInfo.StartX, manipulationInfo.StartY, manipulationInfo.Width, manipulationInfo.Height);
 
             List<int> lowResRPoints = new List<int>(12);
             List<int> lowResGPoints = new List<int>(12);
@@ -274,6 +322,12 @@ namespace ImageStats
                 .Select(colorToIntFunc)
                 .Zip(filter, (v, f) => v * f)
                 .Sum();
+        }
+
+        private IEnumerable<Rectangle> GetSegmentRectangles(Rectangle source)
+        {
+            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 5, 5);
+            return regionCreationStrategy.GetRegions(source);
         }
 
         private IEnumerable<Rectangle> GetLowResRectangles(Rectangle source)
@@ -518,6 +572,7 @@ namespace ImageStats
         public string FilterName { get; }
     }
 
+    [Serializable]
     public struct PhysicalImage
     {
         public PhysicalImage(string imagePath)
@@ -528,22 +583,24 @@ namespace ImageStats
         public string ImagePath { get; }
     }
 
+    [Serializable]
     public struct ImageManipulationInfo
     {
-        public ImageManipulationInfo(int startX, int startZ, int width, int height)
+        public ImageManipulationInfo(int startX, int startY, int width, int height)
         {
             StartX = startX;
-            StartZ = startZ;
+            StartY = startY;
             Width = width;
             Height = height;
         }
 
         public int StartX { get; }
-        public int StartZ { get; }
+        public int StartY { get; }
         public int Width { get; }
         public int Height { get; }
     }
 
+    [Serializable]
     public struct ImageStats
     {
         public ConvolutionResult LowResIntensity { get; set; }
@@ -556,6 +613,7 @@ namespace ImageStats
         public ConvolutionResult MidRes135 { get; set; }
     }
 
+    [Serializable]
     public struct ConvolutionResult
     {
         public ConvolutionResult(IEnumerable<int> values)
@@ -586,17 +644,178 @@ namespace ImageStats
         }
     }
 
+    [Serializable]
     public class ImageAndStats
     {
         public ImageAndStats(PhysicalImage image, ImageManipulationInfo manipulationInfo, ImageStats stats)
+            : this (image, new []{new SegmentAndStats(manipulationInfo, stats), })
+        {
+        }
+
+        public ImageAndStats(PhysicalImage image, IEnumerable<SegmentAndStats> segments)
         {
             Image = image;
-            Stats = stats;
-            ManipulationInfo = manipulationInfo;
+            Segments = segments;
         }
 
         public PhysicalImage Image { get; }
+        public IEnumerable<SegmentAndStats> Segments { get; }
+    }
+
+    public class SegmentAndStats
+    {
+        public SegmentAndStats(ImageManipulationInfo manipulationInfo, ImageStats stats)
+        {
+            ManipulationInfo = manipulationInfo;
+            Stats = stats;
+        }
+
         public ImageManipulationInfo ManipulationInfo { get; }
         public ImageStats Stats { get; }
+    }
+
+    public static class Serializer
+    {
+        /// <summary>
+        /// Writes the given object instance to a binary file.
+        /// <para>Object type (and all child types) must be decorated with the [Serializable] attribute.</para>
+        /// <para>To prevent a variable from being serialized, decorate it with the [NonSerialized] attribute; cannot be applied to properties.</para>
+        /// </summary>
+        /// <typeparam name="T">The type of object being written to the binary file.</typeparam>
+        /// <param name="filePath">The file path to write the object instance to.</param>
+        /// <param name="objectToWrite">The object instance to write to the binary file.</param>
+        /// <param name="append">If false the file will be overwritten if it already exists. If true the contents will be appended to the file.</param>
+        public static void WriteToBinaryFile<T>(string filePath, T objectToWrite, bool append = false)
+        {
+            using (Stream stream = File.Open(filePath, append ? FileMode.Append : FileMode.Create))
+            {
+                var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                binaryFormatter.Serialize(stream, objectToWrite);
+            }
+        }
+
+        /// <summary>
+        /// Reads an object instance from a binary file.
+        /// </summary>
+        /// <typeparam name="T">The type of object to read from the binary file.</typeparam>
+        /// <param name="filePath">The file path to read the object instance from.</param>
+        /// <returns>Returns a new instance of the object read from the binary file.</returns>
+        public static T ReadFromBinaryFile<T>(string filePath)
+        {
+            using (Stream stream = File.Open(filePath, FileMode.Open))
+            {
+                var binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                return (T)binaryFormatter.Deserialize(stream);
+            }
+        }
+
+        /// <summary>
+        /// Writes the given object instance to an XML file.
+        /// <para>Only Public properties and variables will be written to the file. These can be any type though, even other classes.</para>
+        /// <para>If there are public properties/variables that you do not want written to the file, decorate them with the [XmlIgnore] attribute.</para>
+        /// <para>Object type must have a parameterless constructor.</para>
+        /// </summary>
+        /// <typeparam name="T">The type of object being written to the file.</typeparam>
+        /// <param name="filePath">The file path to write the object instance to.</param>
+        /// <param name="objectToWrite">The object instance to write to the file.</param>
+        /// <param name="append">If false the file will be overwritten if it already exists. If true the contents will be appended to the file.</param>
+        public static void WriteToXmlFile<T>(string filePath, T objectToWrite, bool append = false) where T : new()
+        {
+            TextWriter writer = null;
+            try
+            {
+                var serializer = new XmlSerializer(typeof(T));
+                writer = new StreamWriter(filePath, append);
+                serializer.Serialize(writer, objectToWrite);
+            }
+            finally
+            {
+                if (writer != null)
+                    writer.Close();
+            }
+        }
+
+        /// <summary>
+        /// Reads an object instance from an XML file.
+        /// <para>Object type must have a parameterless constructor.</para>
+        /// </summary>
+        /// <typeparam name="T">The type of object to read from the file.</typeparam>
+        /// <param name="filePath">The file path to read the object instance from.</param>
+        /// <returns>Returns a new instance of the object read from the XML file.</returns>
+        public static T ReadFromXmlFile<T>(string filePath) where T : new()
+        {
+            TextReader reader = null;
+            try
+            {
+                var serializer = new XmlSerializer(typeof(T));
+                reader = new StreamReader(filePath);
+                return (T)serializer.Deserialize(reader);
+            }
+            finally
+            {
+                if (reader != null)
+                    reader.Close();
+            }
+        }
+
+        /// <summary>
+        /// Writes the given object instance to a Json file.
+        /// <para>Object type must have a parameterless constructor.</para>
+        /// <para>Only Public properties and variables will be written to the file. These can be any type though, even other classes.</para>
+        /// <para>If there are public properties/variables that you do not want written to the file, decorate them with the [JsonIgnore] attribute.</para>
+        /// </summary>
+        /// <typeparam name="T">The type of object being written to the file.</typeparam>
+        /// <param name="filePath">The file path to write the object instance to.</param>
+        /// <param name="objectToWrite">The object instance to write to the file.</param>
+        /// <param name="append">If false the file will be overwritten if it already exists. If true the contents will be appended to the file.</param>
+        public static void WriteToJsonFile<T>(string filePath, T objectToWrite, bool append = false) where T : new()
+        {
+            TextWriter writer = null;
+            try
+            {
+                var contentsToWriteToFile = JsonConvert.SerializeObject(objectToWrite);
+                writer = new StreamWriter(filePath, append);
+                writer.Write(contentsToWriteToFile);
+            }
+            finally
+            {
+                if (writer != null)
+                    writer.Close();
+            }
+        }
+
+        /// <summary>
+        /// Reads an object instance from an Json file.
+        /// <para>Object type must have a parameterless constructor.</para>
+        /// </summary>
+        /// <typeparam name="T">The type of object to read from the file.</typeparam>
+        /// <param name="filePath">The file path to read the object instance from.</param>
+        /// <returns>Returns a new instance of the object read from the Json file.</returns>
+        public static T ReadFromJsonFile<T>(string filePath) where T : new()
+        {
+            TextReader reader = null;
+            try
+            {
+                reader = new StreamReader(filePath);
+                var fileContents = reader.ReadToEnd();
+                return JsonConvert.DeserializeObject<T>(fileContents);
+            }
+            finally
+            {
+                if (reader != null)
+                    reader.Close();
+            }
+        }
+    }
+
+    [Serializable]
+    public struct Alphabet
+    {
+        public Alphabet(ImageAndStats[] imagesAndStats)
+        {
+            ImagesAndStats = imagesAndStats;
+        }
+
+        public ImageAndStats[] ImagesAndStats { get; }
     }
 }
