@@ -40,18 +40,46 @@ namespace ImageStats
         private static readonly double[] midRes135Filter = new double[] {
             2, -1, -1, 
            -1,  2, -1, 
-           -1, -1, -2, 
+           -1, -1,  2, 
         };
 
         private readonly IEnumerable<ImageAndStats> _imagesAndStats;
         private readonly Random _random = new Random();
+        private readonly IFilter _laxColorFilter;
+        private readonly IFilter _midColorFilter;
+        private readonly IFilter _strictColorFilter;
 
         public Class1()
         {
 
             _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet")
-                .Select(p => new ImageAndStats(p, GetStats(p, new ImageManipulationInfo(0, 0, 40, 30))))
+                .Select(p =>
+                {
+                    var imageManipulationInfo = new ImageManipulationInfo(0, 0, 40, 30);
+                    return new ImageAndStats(p, imageManipulationInfo, GetStats(p, imageManipulationInfo));
+                })
                 .ToArray();
+
+            _laxColorFilter = new CompoundFilterBuilder()
+                .WithConvolutionResultFilter(diff => diff < 40, result => result.LowResR, "LowResRed")
+                .WithConvolutionResultFilter(diff => diff < 40, result => result.LowResG, "LowResGreen")
+                .WithConvolutionResultFilter(diff => diff < 40, result => result.LowResB, "LowResBlue")
+                .WithConvolutionResultFilter(diff => diff < 50, result => result.LowResIntensity, "LowResIntensity")
+                .Build();
+
+            _midColorFilter = new CompoundFilterBuilder()
+                .WithConvolutionResultFilter(diff => diff < 30, result => result.LowResR, "LowResRed")
+                .WithConvolutionResultFilter(diff => diff < 30, result => result.LowResG, "LowResGreen")
+                .WithConvolutionResultFilter(diff => diff < 30, result => result.LowResB, "LowResBlue")
+                .WithConvolutionResultFilter(diff => diff < 35, result => result.LowResIntensity, "LowResIntensity")
+                .Build();
+
+            _strictColorFilter = new CompoundFilterBuilder()
+                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResR, "LowResRed")
+                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResG, "LowResGreen")
+                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResB, "LowResBlue")
+                .WithConvolutionResultFilter(diff => diff < 25, result => result.LowResIntensity, "LowResIntensity")
+                .Build();
         }
 
         public ImageAndStats GetRandom()
@@ -151,18 +179,42 @@ namespace ImageStats
 
         public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
-            var filter = new CompoundFilterBuilder()
-                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResR, "LowResRed")
-                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResG, "LowResGreen")
-                .WithConvolutionResultFilter(diff => diff < 20, result => result.LowResB, "LowResBlue")
-                .WithConvolutionResultFilter(diff => diff < 25, result => result.LowResIntensity, "LowResIntensity")
-                .Build();
             var origStats = GetStats(image, manipulationInfo);
+/*
             foreach (var replacement in _imagesAndStats)
             {
                 if (filter.Compare(origStats, replacement.Stats).Passed)
                 {
                     yield return Loader.LoadImage(replacement.Image.ImagePath).ToBitmap();
+                }
+            }
+*/
+            ImageAndStats[] matches = _imagesAndStats.ToArray();
+
+            IFilter[] filters = {_laxColorFilter, _midColorFilter, _strictColorFilter};
+
+            foreach (var filter in filters)
+            {
+                if (matches.Count() > 10)
+                {
+                    var newMatches = Filter(origStats, matches, filter).ToArray();
+                    if (newMatches.Length > 1)
+                    {
+                        matches = newMatches;
+                    }
+                }
+            }
+
+            return matches.Select(r => Loader.LoadImage(r.Image.ImagePath).ToBitmap());
+        }
+
+        private IEnumerable<ImageAndStats> Filter(ImageStats origStats, IEnumerable<ImageAndStats> images, IFilter filter)
+        {
+            foreach (var replacement in images)
+            {
+                if (filter.Compare(origStats, replacement.Stats).Passed)
+                {
+                    yield return replacement;
                 }
             }
         }
@@ -536,13 +588,15 @@ namespace ImageStats
 
     public class ImageAndStats
     {
-        public ImageAndStats(PhysicalImage image, ImageStats stats)
+        public ImageAndStats(PhysicalImage image, ImageManipulationInfo manipulationInfo, ImageStats stats)
         {
             Image = image;
             Stats = stats;
+            ManipulationInfo = manipulationInfo;
         }
 
-        public PhysicalImage Image { get; private set; }
-        public ImageStats Stats { get; private set; }
+        public PhysicalImage Image { get; }
+        public ImageManipulationInfo ManipulationInfo { get; }
+        public ImageStats Stats { get; }
     }
 }
