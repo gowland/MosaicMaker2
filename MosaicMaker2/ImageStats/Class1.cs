@@ -17,7 +17,7 @@ namespace ImageStats
 {
     public class Class1
     {
-        private const string _pathToAlphabet = @"c:\src\MosaicMaker2\Alphabet\2004_Photos";
+        private const string _pathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
         private const string _indexFileName = @"segment_stats.json";
         private static readonly IncrediblyInefficientImageLoader Loader = new IncrediblyInefficientImageLoader();
         private static readonly double[] lowResSingleIntFilter = new double[] {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
@@ -50,16 +50,19 @@ namespace ImageStats
 
         private ImageAndStats[] _imagesAndStats;
         private readonly Random _random = new Random();
+        private readonly IFilter _pointlessColorFilter;
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
         private readonly IFilter _strictColorFilter;
 
         public Class1()
         {
-            _imagesAndStats = GetFiles(@"c:\src\MosaicMaker2\Alphabet\")
-                .Select(GetMatchableSegments)
-                .ToArray();
-            Serializer.WriteToJsonFile(@"c:\src\MosaicMaker2\Alphabet\segment_stats.json", new Alphabet(_imagesAndStats));
+            _pointlessColorFilter = new CompoundFilterBuilder()
+                .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResR, "LowResRed")
+                .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResG, "LowResGreen")
+                .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResB, "LowResBlue")
+                .WithConvolutionResultFilter(diff => diff < 100, result => result.LowResIntensity, "LowResIntensity")
+                .Build();
 
             _laxColorFilter = new CompoundFilterBuilder()
                 .WithConvolutionResultFilter(diff => diff < 40, result => result.LowResR, "LowResRed")
@@ -225,24 +228,29 @@ namespace ImageStats
         {
             var origStats = GetStats(image, manipulationInfo);
 
-            ImageAndStats[] matches = _imagesAndStats.ToArray();
+            ImageAndStats[] matches = Filter(origStats, _imagesAndStats, _strictColorFilter).ToArray();  // get initial strict matches
 
-            IFilter[] filters = {_laxColorFilter, _midColorFilter, _strictColorFilter};
+            IFilter[] filters = {/*_strictColorFilter,*/ _midColorFilter, _laxColorFilter, _pointlessColorFilter};
 
-            foreach (var filter in filters)
+            foreach (var filter in filters) // apply progressively laxers filters until we get at least 2 matches
             {
-                if (matches.Length > 10)
+                if (matches.Length < 2)
                 {
                     var newMatches = Filter(origStats, matches, filter).ToArray();
-                    if (newMatches.Length > 1)
+                    if (newMatches.Length > matches.Length && newMatches.Length < 20)
                     {
                         matches = newMatches;
                     }
                 }
             }
 
+            matches = matches.Random().Take(100).ToArray(); // Max 100 matches
+
             return matches.SelectMany(r =>
             {
+                var segmentsAsString = string.Join(",", r.Segments
+                    .Select(s => $"[{s.ManipulationInfo.StartX},{s.ManipulationInfo.StartY} -> {s.ManipulationInfo.Width},{s.ManipulationInfo.Height}]"));
+                Console.WriteLine($"Returning match {r.Image.ImagePath} with segments {segmentsAsString}");
                 return r.Segments.Select(s => GetBitmap(r.Image, s.ManipulationInfo));
 /*
                 Bitmap img = Loader.LoadImageAsBitmap(r.Image.ImagePath);
@@ -690,7 +698,7 @@ namespace ImageStats
         public ImageStats Stats { get; set; }
     }
 
-    public static class Serializer
+    public static class Serializer // Code taken from: https://stackoverflow.com/a/22417240
     {
         /// <summary>
         /// Writes the given object instance to a binary file.
@@ -833,5 +841,156 @@ namespace ImageStats
         }
 
         public ImageAndStats[] ImagesAndStats { get; set; }
+    }
+
+    public static class EnumerableExtensions
+    {
+        public static int IndexOf<T>(this IEnumerable<T> source, T value)
+        {
+            int index = 0;
+            var comparer = EqualityComparer<T>.Default; // or pass in as a parameter
+            foreach (T item in source)
+            {
+                if (comparer.Equals(item, value)) return index;
+                index++;
+            }
+            return -1;
+        }
+
+
+        public static IEnumerable<int> IndicesOf<T>(this IEnumerable<T> list, T element)
+        {
+            return list.Select((value, index) => new { value, index })
+                .Where(tuple => tuple.value.Equals(element))
+                .Select(tuple => tuple.index);
+        }
+
+        public static int NthIndexOf<T>(this IEnumerable<T> list, T element, int n)
+        {
+            var indices = list.IndicesOf(element).ToList();
+            return n > 0 && indices.Count >= n ? indices.Skip(n - 1).First() : -1;
+        }
+
+        public static T UnlikeValue<T, U>(this IEnumerable<T> numbers, Func<T, U> groupMethod)
+        {
+            return numbers.GroupBy(groupMethod)
+                .Where(g => g.Count() == 1)
+                .Select(g => g.Single())
+                .Single();
+        }
+
+        // Lifted from: https://stackoverflow.com/a/3670089/20570	
+        public static bool ScrambledEquals<T>(this IEnumerable<T> list1, IEnumerable<T> list2)
+        {
+            var cnt = new Dictionary<T, int>();
+            foreach (T s in list1)
+            {
+                if (cnt.ContainsKey(s))
+                {
+                    cnt[s]++;
+                }
+                else
+                {
+                    cnt.Add(s, 1);
+                }
+            }
+            foreach (T s in list2)
+            {
+                if (cnt.ContainsKey(s))
+                {
+                    cnt[s]--;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return cnt.Values.All(c => c == 0);
+        }
+
+        // Lifted from: https://stackoverflow.com/a/3670089/20570	
+        public static bool ScrambledEquals<T>(this IEnumerable<T> list1, IEnumerable<T> list2, IEqualityComparer<T> comparer)
+        {
+            var cnt = new Dictionary<T, int>(comparer);
+            foreach (T s in list1)
+            {
+                if (cnt.ContainsKey(s))
+                {
+                    cnt[s]++;
+                }
+                else
+                {
+                    cnt.Add(s, 1);
+                }
+            }
+            foreach (T s in list2)
+            {
+                if (cnt.ContainsKey(s))
+                {
+                    cnt[s]--;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return cnt.Values.All(c => c == 0);
+        }
+
+        public static IEnumerable<T> SkipUntil<T>(this IEnumerable<T> list, Func<T, bool> predicate)
+        {
+            return list.SkipWhile(item => !predicate(item));
+        }
+
+        public static IEnumerable<IEnumerable<T>> Pairs<T>(this IEnumerable<T> source)
+        {
+            int count = source.Count();
+            return source
+                .Take(count - 1)
+                .SelectMany((element, index) =>
+                    source
+                        .Skip(index + 1)
+                        .Take(1)
+                        .Select(c => new T[] { element, c }));
+        }
+
+        /// <summary>
+        ///   Returns all combinations of a chosen amount of selected elements in the sequence.
+        /// </summary>
+        /// <typeparam name = "T">The type of the elements of the input sequence.</typeparam>
+        /// <param name = "source">The source for this extension method.</param>
+        /// <param name = "select">The amount of elements to select for every combination.</param>
+        /// <param name = "repetition">True when repetition of elements is allowed.</param>
+        /// <returns>All combinations of a chosen amount of selected elements in the sequence.</returns>
+        public static IEnumerable<IEnumerable<T>> Combinations<T>(this IEnumerable<T> source, int select, bool repetition = false)
+        {
+            return select == 0
+                ? new[] { new T[0] }
+                : source.SelectMany((element, index) =>
+                    source
+                        .Skip(repetition ? index : index + 1)
+                        .Combinations(select - 1, repetition)
+                        .Select(c => new[] { element }.Concat(c)));
+        }
+
+        public static IEnumerable<T> NullAsEmpty<T>(this IEnumerable<T> list)
+        {
+            return list ?? new T[0];
+        }
+
+        public static void ForEach<T>(this IEnumerable<T> list, Action<T> action)
+        {
+            foreach (T item in list)
+            {
+                action(item);
+            }
+        }
+
+        private static readonly Random _rand = new Random();
+
+        public static IEnumerable<T> Random<T>(this IEnumerable<T> list)
+        {
+            return list.OrderBy(_ => _rand.Next());
+        }
     }
 }
