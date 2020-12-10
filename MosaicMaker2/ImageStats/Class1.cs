@@ -12,48 +12,129 @@ using ImageStats.Utils;
 
 namespace ImageStats
 {
+    public class StatsGenerator
+    {
+        private readonly IImageLoader _loader;
+        public static readonly double[] LowResSingleIntFilter = new double[] {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
+        public static readonly double[] MidResEdgeFilter = {
+            -1.0, -1.0, -1.0, 
+            -1.0,  8, -1.0, 
+            -1.0, -1.0, -1.0, 
+        };
+        public static readonly double[] MidResHorizontalFilter = {
+            1,  0, -1, 
+            2,  0, -2, 
+            1,  0, -1, 
+        };
+        public static readonly double[] MidResVerticalFilter = {
+            1,  2,  1, 
+            0,  0,  0, 
+            -1, -2, -1, 
+        };
+        public static readonly double[] MidRes45Filter = {
+            -1, -1,  2, 
+            -1,  2, -1, 
+            2, -1, -1, 
+        };
+        public static readonly double[] MidRes135Filter = {
+            2, -1, -1, 
+            -1,  2, -1, 
+            -1, -1,  2, 
+        };
+
+        public StatsGenerator(IImageLoader loader)
+        {
+            _loader = loader;
+        }
+
+        public ImageAndStats[] _imagesAndStats { get; set; }
+
+        public IEnumerable<Rectangle> GetSegmentRectangles(Rectangle source)
+        {
+            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 5, 5);
+            return regionCreationStrategy.GetRegions(source);
+        }
+
+        public IEnumerable<Rectangle> GetMidResRectangles(Rectangle source)
+        {
+            FixedSizeRegionCreationStrategy regionCreationStrategy = new FixedSizeRegionCreationStrategy(3, 3, 1, 1);
+            return regionCreationStrategy.GetRegions(source);
+        }
+
+        public IEnumerable<Rectangle> GetLowResRectangles(Rectangle source)
+        {
+            NonOverlappingRegionCreationStrategy regionCreationStrategy = new NonOverlappingRegionCreationStrategy(10,10);
+            return regionCreationStrategy.GetRegions(source);
+        }
+
+        public Stats.ImageStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        {
+            global::FastBitmap.FastBitmap bitmap = _loader.LoadImage(image.ImagePath);
+            var sourceRectangle = manipulationInfo.AsRectangle(); 
+
+            List<int> lowResRPoints = new List<int>(12);
+            List<int> lowResGPoints = new List<int>(12);
+            List<int> lowResBPoints = new List<int>(12);
+            List<int> lowResIntensityPoints = new List<int>(12);
+
+            List<int> midResVerticalPoints = new List<int>(48);
+
+            foreach (var lowResRect in this.GetLowResRectangles(sourceRectangle))
+            {
+                var segment = bitmap.GetColors(lowResRect).ToArray();
+
+                lowResRPoints.Add(ApplyFilter(segment, c => c.R, StatsGenerator.LowResSingleIntFilter));
+                lowResGPoints.Add(ApplyFilter(segment, c => c.G, StatsGenerator.LowResSingleIntFilter));
+                lowResBPoints.Add(ApplyFilter(segment, c => c.B, StatsGenerator.LowResSingleIntFilter));
+                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), StatsGenerator.LowResSingleIntFilter));
+            }
+
+            foreach (var midResRect in this.GetMidResRectangles(sourceRectangle))
+            {
+                var segment = bitmap.GetColors(midResRect).ToArray();
+
+//                lowResRPoints.Add(ApplyFilter(segment, c => c.R, lowResSingleIntFilter));
+//                lowResGPoints.Add(ApplyFilter(segment, c => c.G, lowResSingleIntFilter));
+//                lowResBPoints.Add(ApplyFilter(segment, c => c.B, lowResSingleIntFilter));
+//                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), lowResSingleIntFilter));
+            }
+
+            return new Stats.ImageStats()
+            {
+                LowResR = new ConvolutionResult(lowResRPoints),
+                LowResG = new ConvolutionResult(lowResGPoints),
+                LowResB = new ConvolutionResult(lowResBPoints),
+                LowResIntensity = new ConvolutionResult(lowResIntensityPoints),
+            };
+        }
+
+        public int ApplyFilter(Color[] colors, Func<Color, int> colorToIntFunc, double[] filter)
+        {
+            return (int) colors
+                .Select(colorToIntFunc)
+                .Zip(filter, (v, f) => v * f)
+                .Sum();
+        }
+    }
+
     public class Class1
     {
         private const string PathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
         private const string IndexFileName = @"segment_stats.json";
         private static readonly IncrediblyInefficientImageLoader Loader = new IncrediblyInefficientImageLoader();
-        private static readonly double[] LowResSingleIntFilter = new double[] {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
 
-        private static readonly double[] MidResEdgeFilter = {
-            -1.0, -1.0, -1.0, 
-            -1.0,  8, -1.0, 
-            -1.0, -1.0, -1.0, 
-        };
-        private static readonly double[] MidResHorizontalFilter = {
-            1,  0, -1, 
-            2,  0, -2, 
-            1,  0, -1, 
-        };
-        private static readonly double[] MidResVerticalFilter = {
-            1,  2,  1, 
-            0,  0,  0, 
-           -1, -2, -1, 
-        };
-        private static readonly double[] MidRes45Filter = {
-           -1, -1,  2, 
-           -1,  2, -1, 
-            2, -1, -1, 
-        };
-        private static readonly double[] MidRes135Filter = {
-            2, -1, -1, 
-           -1,  2, -1, 
-           -1, -1,  2, 
-        };
-
-        private ImageAndStats[] _imagesAndStats;
         private readonly Random _random = new Random();
         private readonly IFilter _pointlessColorFilter;
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
         private readonly IFilter _strictColorFilter;
 
+        private StatsGenerator _statsGenerator;
+
         public Class1()
         {
+            _statsGenerator = new StatsGenerator(Loader);
+
             _pointlessColorFilter = new CompoundFilterBuilder()
                 .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResR, "LowResRed")
                 .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResG, "LowResGreen")
@@ -83,30 +164,35 @@ namespace ImageStats
                 .Build();
         }
 
+        public StatsGenerator StatsGenerator
+        {
+            set { _statsGenerator = value; }
+            get { return _statsGenerator; }
+        }
+
         public void CreateIndex()
         {
-            _imagesAndStats = GetFiles(PathToAlphabet)
+            _statsGenerator._imagesAndStats = GetFiles(PathToAlphabet)
                 .Select(GetMatchableSegments)
                 .ToArray();
-            Serializer.WriteToJsonFile(Path.Combine(PathToAlphabet, IndexFileName), new Alphabet(_imagesAndStats));
+            Serializer.WriteToJsonFile(Path.Combine(PathToAlphabet, IndexFileName), new Alphabet(_statsGenerator._imagesAndStats));
         }
 
         public void LoadIndex()
         {
             Alphabet alphabet = Serializer.ReadFromJsonFile<Alphabet>(Path.Combine(PathToAlphabet, IndexFileName));
-            _imagesAndStats = alphabet.ImagesAndStats;
+            _statsGenerator._imagesAndStats = alphabet.ImagesAndStats;
         }
 
         private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
         {
             var img = Loader.LoadImage(physicalImage.ImagePath);
-            IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
+            IEnumerable<Rectangle> rects = _statsGenerator.GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
             var segmentStats = new List<SegmentAndStats>();
             foreach (var rectangle in rects)
             {
                 var imageManipulationInfo = new ImageManipulationInfo(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
-                Stats.ImageStats imageStats = GetStats(physicalImage,
-                    imageManipulationInfo);
+                Stats.ImageStats imageStats = _statsGenerator.GetStats(physicalImage, imageManipulationInfo);
                 segmentStats.Add(new SegmentAndStats(imageManipulationInfo, imageStats));
             }
 
@@ -115,7 +201,7 @@ namespace ImageStats
 
         public ImageAndStats GetRandom()
         {
-            return _imagesAndStats.Random().First();
+            return _statsGenerator._imagesAndStats.Random().First();
         }
 
 
@@ -168,11 +254,11 @@ namespace ImageStats
                 {
                     var convolutionPixels = GetConvolutionPixels(bitmapAsIntensity, new Rectangle(x - 1, y - 1, 3, 3)).ToArray();
 
-                    convolution135Result[x,y] = GetConvolution(convolutionPixels, MidRes135Filter);
-                    convolution45Result[x,y] = GetConvolution(convolutionPixels, MidRes45Filter);
-                    convolutionHorizontalResult[x,y] = GetConvolution(convolutionPixels, MidResHorizontalFilter);
-                    convolutionVerticalResult[x,y] = GetConvolution(convolutionPixels, MidResVerticalFilter);
-                    convolutionEdgeResult[x,y] = GetConvolution(convolutionPixels, MidResEdgeFilter);
+                    convolution135Result[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes135Filter);
+                    convolution45Result[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes45Filter);
+                    convolutionHorizontalResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResHorizontalFilter);
+                    convolutionVerticalResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResVerticalFilter);
+                    convolutionEdgeResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResEdgeFilter);
                 }
             }
             bitmap.Unlock();
@@ -206,9 +292,9 @@ namespace ImageStats
 
         public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
-            var origStats = GetStats(image, manipulationInfo);
+            var origStats = _statsGenerator.GetStats(image, manipulationInfo);
 
-            ImageAndStats[] matches = Filter(origStats, _imagesAndStats, _strictColorFilter).ToArray();  // get initial strict matches
+            ImageAndStats[] matches = Filter(origStats, _statsGenerator._imagesAndStats, _strictColorFilter).ToArray();  // get initial strict matches
 
             IFilter[] filters = {/*_strictColorFilter,*/ _midColorFilter, _laxColorFilter, _pointlessColorFilter};
 
@@ -265,73 +351,6 @@ namespace ImageStats
             {
                 yield return new PhysicalImage(file);
             }
-        }
-
-        public Stats.ImageStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
-        {
-            global::FastBitmap.FastBitmap bitmap = Loader.LoadImage(image.ImagePath);
-            var sourceRectangle = manipulationInfo.AsRectangle(); 
-
-            List<int> lowResRPoints = new List<int>(12);
-            List<int> lowResGPoints = new List<int>(12);
-            List<int> lowResBPoints = new List<int>(12);
-            List<int> lowResIntensityPoints = new List<int>(12);
-
-            List<int> midResVerticalPoints = new List<int>(48);
-
-            foreach (var lowResRect in GetLowResRectangles(sourceRectangle))
-            {
-                var segment = bitmap.GetColors(lowResRect).ToArray();
-
-                lowResRPoints.Add(ApplyFilter(segment, c => c.R, LowResSingleIntFilter));
-                lowResGPoints.Add(ApplyFilter(segment, c => c.G, LowResSingleIntFilter));
-                lowResBPoints.Add(ApplyFilter(segment, c => c.B, LowResSingleIntFilter));
-                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), LowResSingleIntFilter));
-            }
-
-            foreach (var midResRect in GetMidResRectangles(sourceRectangle))
-            {
-                var segment = bitmap.GetColors(midResRect).ToArray();
-
-//                lowResRPoints.Add(ApplyFilter(segment, c => c.R, lowResSingleIntFilter));
-//                lowResGPoints.Add(ApplyFilter(segment, c => c.G, lowResSingleIntFilter));
-//                lowResBPoints.Add(ApplyFilter(segment, c => c.B, lowResSingleIntFilter));
-//                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), lowResSingleIntFilter));
-            }
-
-            return new Stats.ImageStats()
-            {
-                LowResR = new ConvolutionResult(lowResRPoints),
-                LowResG = new ConvolutionResult(lowResGPoints),
-                LowResB = new ConvolutionResult(lowResBPoints),
-                LowResIntensity = new ConvolutionResult(lowResIntensityPoints),
-            };
-        }
-
-        private int ApplyFilter(Color[] colors, Func<Color, int> colorToIntFunc, double[] filter)
-        {
-            return (int) colors
-                .Select(colorToIntFunc)
-                .Zip(filter, (v, f) => v * f)
-                .Sum();
-        }
-
-        private IEnumerable<Rectangle> GetSegmentRectangles(Rectangle source)
-        {
-            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 5, 5);
-            return regionCreationStrategy.GetRegions(source);
-        }
-
-        private IEnumerable<Rectangle> GetLowResRectangles(Rectangle source)
-        {
-            NonOverlappingRegionCreationStrategy regionCreationStrategy = new NonOverlappingRegionCreationStrategy(10,10);
-            return regionCreationStrategy.GetRegions(source);
-        }
-
-        private IEnumerable<Rectangle> GetMidResRectangles(Rectangle source)
-        {
-            FixedSizeRegionCreationStrategy regionCreationStrategy = new FixedSizeRegionCreationStrategy(3, 3, 1, 1);
-            return regionCreationStrategy.GetRegions(source);
         }
     }
 
