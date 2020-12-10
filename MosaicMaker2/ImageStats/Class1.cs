@@ -115,18 +115,24 @@ namespace ImageStats
 
         public ImageAndStats GetRandom()
         {
-            return _imagesAndStats.OrderBy(_ => _random.Next()).First();
+            return _imagesAndStats.Random().First();
         }
+
 
         public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
         {
-            var img = Loader.LoadImageAsBitmap(physicalImage.ImagePath);
+            return BitmapAdapter.FromPath(physicalImage.ImagePath, Loader)
+                .GetSegment(manipulationInfo);
+        }
+
+        private static Bitmap GetBitmap(ImageManipulationInfo manipulationInfo, Bitmap img)
+        {
             var bmp = new Bitmap(manipulationInfo.Width, manipulationInfo.Height);
             FastBitmap.FastBitmap segment = new FastBitmap.FastBitmap(bmp);
             segment.Lock();
-            segment.CopyRegion(img, 
-                    manipulationInfo.AsRectangle(),
-                    manipulationInfo.AsZeroBasedRectangleOfSameSize());
+            segment.CopyRegion(img,
+                manipulationInfo.AsRectangle(),
+                manipulationInfo.AsZeroBasedRectangleOfSameSize());
             segment.Unlock();
             return bmp;
         }
@@ -225,7 +231,8 @@ namespace ImageStats
                 var segmentsAsString = string.Join(",", r.Segments
                     .Select(s => s.ToString()));
                 Console.WriteLine($"Returning match {r.Image.ImagePath} with segments {segmentsAsString}");
-                return r.Segments.Select(s => GetBitmap(r.Image, s.ManipulationInfo));
+                var img = BitmapAdapter.FromPath(r.Image.ImagePath, Loader);
+                return r.Segments.Select(s => img.GetSegment(s.ManipulationInfo));
             });
         }
 
@@ -325,6 +332,34 @@ namespace ImageStats
         {
             FixedSizeRegionCreationStrategy regionCreationStrategy = new FixedSizeRegionCreationStrategy(3, 3, 1, 1);
             return regionCreationStrategy.GetRegions(source);
+        }
+    }
+
+    public class BitmapAdapter
+    {
+        private readonly Bitmap _bitmap;
+
+        public BitmapAdapter(Bitmap bitmap)
+        {
+            _bitmap = bitmap;
+        }
+
+        public static BitmapAdapter FromPath(string path, IImageLoader loader)
+        {
+            var img = loader.LoadImageAsBitmap(path);
+            return new BitmapAdapter(img);
+        }
+
+        public Bitmap GetSegment(ImageManipulationInfo manipulationInfo)
+        {
+            var targetBitmap = new Bitmap(manipulationInfo.Width, manipulationInfo.Height);
+            FastBitmap.FastBitmap segment = new FastBitmap.FastBitmap(targetBitmap);
+            segment.Lock();
+            segment.CopyRegion(_bitmap,
+                manipulationInfo.AsRectangle(),
+                manipulationInfo.AsZeroBasedRectangleOfSameSize());
+            segment.Unlock();
+            return targetBitmap;
         }
     }
 }

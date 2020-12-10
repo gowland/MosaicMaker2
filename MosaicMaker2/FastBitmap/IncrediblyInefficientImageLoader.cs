@@ -6,7 +6,7 @@ namespace FastBitmap
     {
         public FastBitmap LoadImage(string imagePath)
         {
-            var bitmap = (Bitmap)Image.FromFile(imagePath);
+            var bitmap = LoadImageAsBitmap(imagePath);
             return new FastBitmap(bitmap);
         }
 
