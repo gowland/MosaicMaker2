@@ -15,7 +15,7 @@ namespace ImageStats
     public class StatsGenerator
     {
         private readonly IImageLoader _loader;
-        public static readonly double[] LowResSingleIntFilter = new double[] {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
+        public static readonly double[] LowResSingleIntFilter = {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
         public static readonly double[] MidResEdgeFilter = {
             -1.0, -1.0, -1.0, 
             -1.0,  8, -1.0, 
@@ -79,17 +79,17 @@ namespace ImageStats
 
             List<int> midResVerticalPoints = new List<int>(48);
 
-            foreach (var lowResRect in this.GetLowResRectangles(sourceRectangle))
+            foreach (var lowResRect in GetLowResRectangles(sourceRectangle))
             {
                 var segment = bitmap.GetColors(lowResRect).ToArray();
 
-                lowResRPoints.Add(ApplyFilter(segment, c => c.R, StatsGenerator.LowResSingleIntFilter));
-                lowResGPoints.Add(ApplyFilter(segment, c => c.G, StatsGenerator.LowResSingleIntFilter));
-                lowResBPoints.Add(ApplyFilter(segment, c => c.B, StatsGenerator.LowResSingleIntFilter));
-                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), StatsGenerator.LowResSingleIntFilter));
+                lowResRPoints.Add(ApplyFilter(segment, c => c.R, LowResSingleIntFilter));
+                lowResGPoints.Add(ApplyFilter(segment, c => c.G, LowResSingleIntFilter));
+                lowResBPoints.Add(ApplyFilter(segment, c => c.B, LowResSingleIntFilter));
+                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), LowResSingleIntFilter));
             }
 
-            foreach (var midResRect in this.GetMidResRectangles(sourceRectangle))
+            foreach (var midResRect in GetMidResRectangles(sourceRectangle))
             {
                 var segment = bitmap.GetColors(midResRect).ToArray();
 
@@ -115,15 +115,53 @@ namespace ImageStats
                 .Zip(filter, (v, f) => v * f)
                 .Sum();
         }
+
+        public ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
+        {
+            var img = _loader.LoadImage(physicalImage.ImagePath);
+            IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
+            var segmentStats = new List<SegmentAndStats>();
+            foreach (var rectangle in rects)
+            {
+                var imageManipulationInfo = new ImageManipulationInfo(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
+                Stats.ImageStats imageStats = GetStats(physicalImage,
+                    imageManipulationInfo);
+                segmentStats.Add(new SegmentAndStats(imageManipulationInfo, imageStats));
+            }
+
+            return new ImageAndStats(physicalImage, segmentStats);
+        }
+
+        public void CreateIndex()
+        {
+            _imagesAndStats = GetFiles(PathToAlphabet)
+                .Select(GetMatchableSegments)
+                .ToArray();
+            Serializer.WriteToJsonFile(Path.Combine(PathToAlphabet, IndexFileName), new Alphabet(_imagesAndStats));
+        }
+
+        public void LoadIndex()
+        {
+            Alphabet alphabet = Serializer.ReadFromJsonFile<Alphabet>(Path.Combine(PathToAlphabet, IndexFileName));
+            _imagesAndStats = alphabet.ImagesAndStats;
+        }
+
+        private const string PathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
+        private const string IndexFileName = @"segment_stats.json";
+
+        private IEnumerable<PhysicalImage> GetFiles(string path)
+        {
+            foreach (string file in Directory.EnumerateFiles(path, "*.bmp", SearchOption.AllDirectories)) // TODO: Handle other image types
+            {
+                yield return new PhysicalImage(file);
+            }
+        }
     }
 
     public class Class1
     {
-        private const string PathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
-        private const string IndexFileName = @"segment_stats.json";
         private static readonly IncrediblyInefficientImageLoader Loader = new IncrediblyInefficientImageLoader();
 
-        private readonly Random _random = new Random();
         private readonly IFilter _pointlessColorFilter;
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
@@ -164,39 +202,14 @@ namespace ImageStats
                 .Build();
         }
 
-        public StatsGenerator StatsGenerator
-        {
-            set { _statsGenerator = value; }
-            get { return _statsGenerator; }
-        }
-
         public void CreateIndex()
         {
-            _statsGenerator._imagesAndStats = GetFiles(PathToAlphabet)
-                .Select(GetMatchableSegments)
-                .ToArray();
-            Serializer.WriteToJsonFile(Path.Combine(PathToAlphabet, IndexFileName), new Alphabet(_statsGenerator._imagesAndStats));
+            _statsGenerator.CreateIndex();
         }
 
         public void LoadIndex()
         {
-            Alphabet alphabet = Serializer.ReadFromJsonFile<Alphabet>(Path.Combine(PathToAlphabet, IndexFileName));
-            _statsGenerator._imagesAndStats = alphabet.ImagesAndStats;
-        }
-
-        private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
-        {
-            var img = Loader.LoadImage(physicalImage.ImagePath);
-            IEnumerable<Rectangle> rects = _statsGenerator.GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
-            var segmentStats = new List<SegmentAndStats>();
-            foreach (var rectangle in rects)
-            {
-                var imageManipulationInfo = new ImageManipulationInfo(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
-                Stats.ImageStats imageStats = _statsGenerator.GetStats(physicalImage, imageManipulationInfo);
-                segmentStats.Add(new SegmentAndStats(imageManipulationInfo, imageStats));
-            }
-
-            return new ImageAndStats(physicalImage, segmentStats);
+            _statsGenerator.LoadIndex();
         }
 
         public ImageAndStats GetRandom()
@@ -210,19 +223,6 @@ namespace ImageStats
             return BitmapAdapter.FromPath(physicalImage.ImagePath, Loader)
                 .GetSegment(manipulationInfo);
         }
-
-        private static Bitmap GetBitmap(ImageManipulationInfo manipulationInfo, Bitmap img)
-        {
-            var bmp = new Bitmap(manipulationInfo.Width, manipulationInfo.Height);
-            FastBitmap.FastBitmap segment = new FastBitmap.FastBitmap(bmp);
-            segment.Lock();
-            segment.CopyRegion(img,
-                manipulationInfo.AsRectangle(),
-                manipulationInfo.AsZeroBasedRectangleOfSameSize());
-            segment.Unlock();
-            return bmp;
-        }
-
 
         public IEnumerable<Bitmap> GetMidResConvolution(PhysicalImage physicalImage)
         {
@@ -342,14 +342,6 @@ namespace ImageStats
                 {
                     yield return replacement;
                 }
-            }
-        }
-
-        private IEnumerable<PhysicalImage> GetFiles(string path)
-        {
-            foreach (string file in Directory.EnumerateFiles(path, "*.bmp", SearchOption.AllDirectories)) // TODO: Handle other image types
-            {
-                yield return new PhysicalImage(file);
             }
         }
     }
