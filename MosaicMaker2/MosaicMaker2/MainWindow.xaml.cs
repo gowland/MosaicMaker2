@@ -20,6 +20,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using ImageStats;
+using ImageStats.Stats;
 
 namespace MosaicMaker2
 {
