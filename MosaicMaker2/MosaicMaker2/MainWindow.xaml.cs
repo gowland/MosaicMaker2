@@ -19,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using FastBitmap;
 using ImageStats;
 using ImageStats.Stats;
 
@@ -46,10 +47,12 @@ namespace MosaicMaker2
     {
         private static readonly ObservableCollection<BitmapImage> ConvolutionObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
-        private static readonly Class1 class1 = new Class1();
+        private readonly Class1 class1;
+        private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
 
         public MainWindowViewModel()
         {
+            class1 = new Class1(Loader);
             ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
         }
@@ -65,7 +68,8 @@ namespace MosaicMaker2
             SourceImage = class1.GetBitmap(img.Image, firstSegment).ToBitmapImage();
             OnPropertyChanged(nameof(SourceImage));
 
-            var convolutionImages = class1.GetMidResConvolution(img.Image).Select(bm => bm.ToBitmapImage());
+            StatsGenerator statsGenerator = new StatsGenerator(Loader);
+            var convolutionImages = statsGenerator.GetMidResConvolution(img.Image).Select(bm => bm.ToBitmapImage());
             ConvolutionObservableCollection.Clear();
             foreach (var convolutionImage in convolutionImages)
             {

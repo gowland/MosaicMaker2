@@ -96,6 +96,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FastBitmap\FastBitmap.csproj">
+      <Project>{E3D0314D-0D40-477F-B693-D22C96DA6D84}</Project>
+      <Name>FastBitmap</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ImageStats\ImageStats.csproj">
       <Project>{B0D06FFC-118F-4652-AB53-42357835E349}</Project>
       <Name>ImageStats</Name>

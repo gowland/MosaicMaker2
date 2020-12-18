@@ -60,6 +60,7 @@
     <Compile Include="RegionCreation\FixedSizeRegionCreationStrategy.cs" />
     <Compile Include="RegionCreation\IRegionCreationStrategy.cs" />
     <Compile Include="RegionCreation\NonOverlappingRegionCreationStrategy.cs" />
+    <Compile Include="StatsGenerator.cs" />
     <Compile Include="Stats\Alphabet.cs" />
     <Compile Include="Stats\ConvolutionResult.cs" />
     <Compile Include="Stats\ConvolutionResultExtensions.cs" />
