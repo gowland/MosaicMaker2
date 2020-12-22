@@ -10,21 +10,17 @@ using ImageStats.Utils;
 
 namespace ImageStats
 {
-    public class Class1
+    public class MatchFinder
     {
-        private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
-
         private readonly IFilter _pointlessColorFilter;
         private readonly IFilter _laxColorFilter;
         private readonly IFilter _midColorFilter;
         private readonly IFilter _strictColorFilter;
+        private readonly Alphabet _alphabet;
 
-        private StatsGenerator _statsGenerator;
-
-        public Class1(IImageLoader loader)
+        public MatchFinder(Alphabet alphabet)
         {
-            Loader = loader;
-            _statsGenerator = new StatsGenerator(loader);
+            _alphabet = alphabet;
 
             _pointlessColorFilter = new CompoundFilterBuilder()
                 .WithConvolutionResultFilter(diff => diff < 80, result => result.LowResR, "LowResRed")
@@ -55,65 +51,15 @@ namespace ImageStats
                 .Build();
         }
 
-        public void CreateIndex()
-        {
-            _statsGenerator.CreateIndex();
-        }
-
-        public void LoadIndex()
-        {
-            _statsGenerator.LoadIndex();
-        }
-
-        public ImageAndStats GetRandom()
-        {
-            return _statsGenerator.ImagesAndStats.Random().First();
-        }
-
-
-        public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
-        {
-            return BitmapAdapter.FromPath(physicalImage.ImagePath, Loader)
-                .GetSegment(manipulationInfo);
-        }
-
-        public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
-        {
-            return CompareImageToAlphabet(_statsGenerator.GetStats(image, manipulationInfo));
-        }
-
-
-        public IEnumerable<Bitmap> CompareImageToAlphabet(Stats.ImageStats origStats)
-        {
-            return GetMatches(origStats).SelectMany(r =>
-            {
-                var segmentsAsString = string.Join(",", r.Segments
-                    .Select(s => s.ToString()));
-                Console.WriteLine($"Returning match {r.Image.ImagePath} with segments {segmentsAsString}");
-                var img = BitmapAdapter.FromPath(r.Image.ImagePath, Loader);
-                return r.Segments.Select(s => img.GetSegment(s.ManipulationInfo));
-            });
-        }
-
-        public IEnumerable<SourceAndMatch> GetMatches(BitmapAdapter original, ImageManipulationInfo manipulationInfo)
-        {
-            // Get stats
-            var origStats = this._statsGenerator.GetStats(original, manipulationInfo);
-
-            var matches = GetMatches(origStats);
-            return matches.SelectMany(m => m.Segments.Select(segment => new SourceAndMatch(manipulationInfo, m.Image, segment.ManipulationInfo)));
-        }
-
-
-        private ImageAndStats[] GetMatches(Stats.ImageStats origStats)
+        public ImageAndStats[] GetMatches(Stats.ImageStats origStats)
         {
             ImageAndStats[]
-                matches = Filter(origStats, _statsGenerator.ImagesAndStats, _strictColorFilter)
+                matches = Filter(origStats, _alphabet.ImagesAndStats, _strictColorFilter)
                     .ToArray(); // get initial strict matches
 
             IFilter[] filters =
             {
-                /*_strictColorFilter,*/ _midColorFilter, _laxColorFilter, _pointlessColorFilter
+                _strictColorFilter, _midColorFilter, _laxColorFilter, _pointlessColorFilter
             };
 
             foreach (var filter in filters) // apply progressively laxer filters until we get at least 2 matches
@@ -153,6 +99,59 @@ namespace ImageStats
                     yield return replacement;
                 }
             }
+        }
+    }
+
+    public class Class1
+    {
+        private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
+
+        private readonly StatsGenerator _statsGenerator;
+        private MatchFinder _matchFinder;
+
+        public Class1(IImageLoader loader)
+        {
+            Loader = loader;
+            _statsGenerator = new StatsGenerator(loader);
+        }
+
+        public void CreateIndex()
+        {
+            _statsGenerator.CreateIndex();
+        }
+
+        public void LoadIndex()
+        {
+            _statsGenerator.LoadIndex();
+            _matchFinder = new MatchFinder(new Alphabet(_statsGenerator.ImagesAndStats));
+        }
+
+        public ImageAndStats GetRandom()
+        {
+            return _statsGenerator.ImagesAndStats.Random().First();
+        }
+
+        public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
+        {
+            return BitmapAdapter.FromPath(physicalImage.ImagePath, Loader)
+                .GetSegment(manipulationInfo);
+        }
+
+        public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        {
+            return CompareImageToAlphabet(_statsGenerator.GetStats(image, manipulationInfo));
+        }
+
+        public IEnumerable<Bitmap> CompareImageToAlphabet(Stats.ImageStats origStats)
+        {
+            return _matchFinder.GetMatches(origStats).SelectMany(r =>
+            {
+                var segmentsAsString = string.Join(",", r.Segments
+                    .Select(s => s.ToString()));
+                Console.WriteLine($"Returning match {r.Image.ImagePath} with segments {segmentsAsString}");
+                var img = BitmapAdapter.FromPath(r.Image.ImagePath, Loader);
+                return r.Segments.Select(s => img.GetSegment(s.ManipulationInfo));
+            });
         }
     }
 
