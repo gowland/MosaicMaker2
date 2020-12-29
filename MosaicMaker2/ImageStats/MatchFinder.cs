@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
 using ImageStats.MatchFilters;
 using ImageStats.Stats;
 using ImageStats.Utils;
@@ -49,6 +50,17 @@ namespace ImageStats
 
         public ImageAndStats[] GetMatches(Stats.ImageStats origStats)
         {
+            return _alphabet.ImagesAndStats
+                .SelectMany(img => img.Segments.Select(seg => new {Image = img.Image, Segment = seg}))
+                .OrderBy(seg => seg.Segment.Stats.LowResR.Difference(origStats.LowResR) +
+                                1.1 * seg.Segment.Stats.LowResG.Difference(origStats.LowResG) +
+                                seg.Segment.Stats.LowResB.Difference(origStats.LowResB) +
+                                1.5 * seg.Segment.Stats.LowResIntensity.Difference(origStats.LowResIntensity))
+                .Take(10)
+                .GroupBy(seg => seg.Image.ImagePath)
+                .Select(group => new ImageAndStats(group.First().Image, group.Select(i => new SegmentAndStats(i.Segment.ManipulationInfo, i.Segment.Stats))))
+                .ToArray();
+            /*
             ImageAndStats[]
                 matches = Filter(origStats, _alphabet.ImagesAndStats, _strictColorFilter)
                     .ToArray(); // get initial strict matches
@@ -72,6 +84,7 @@ namespace ImageStats
 
             matches = matches.Random().Take(100).ToArray(); // Max 100 matches
             return matches;
+        */
         }
 
         private IEnumerable<ImageAndStats> Filter(Stats.ImageStats origStats, IEnumerable<ImageAndStats> images, IFilter filter)
