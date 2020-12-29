@@ -15,6 +15,7 @@ namespace ImageStats
     {
         private readonly IImageLoader _loader;
         private static readonly double[] LowResSingleIntFilter = {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
+        private static readonly double[] ReduceIdentityFilter = { 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0 };
         private static readonly double[] MidResEdgeFilter = {
             -1.0, -1.0, -1.0, 
             -1.0,  8, -1.0, 
@@ -63,6 +64,12 @@ namespace ImageStats
         private IEnumerable<Rectangle> GetLowResRectangles(Rectangle source)
         {
             NonOverlappingRegionCreationStrategy regionCreationStrategy = new NonOverlappingRegionCreationStrategy(10,10);
+            return regionCreationStrategy.GetRegions(source);
+        }
+
+        private IEnumerable<Rectangle> GetReductionIdentityRectangles(Rectangle source)
+        {
+            var regionCreationStrategy = new NonOverlappingRegionCreationStrategy(5, 5);
             return regionCreationStrategy.GetRegions(source);
         }
 
@@ -118,7 +125,15 @@ namespace ImageStats
             };
         }
 
-        public int ApplyFilter(Color[] colors, Func<Color, int> colorToIntFunc, double[] filter)
+        private IEnumerable<FlatArray2DArray<int>> Reduce(FlatArray2DArray<int> source)
+        {
+            var rect = new Rectangle(0,0,source.Width,source.Height);
+            var subRects = GetReductionIdentityRectangles(rect);
+            var reduced = subRects.Select(r => ApplyFilter(source., i => i, ReduceIdentityFilter));
+            return new FlatArray2DArray<int>(reduced);
+        }
+
+        public int ApplyFilter<T>(T[] colors, Func<T, int> colorToIntFunc, double[] filter)
         {
             return (int) colors
                 .Select(colorToIntFunc)
@@ -167,11 +182,18 @@ namespace ImageStats
             }
         }
 
-        public IEnumerable<Bitmap> GetMidResConvolution(PhysicalImage physicalImage)
+        public IEnumerable<Bitmap> GetMidResConvolutionAsBitmap(PhysicalImage physicalImage) // Only for demo
+        {
+            var convolutionResults = GetMidResConvolution2(physicalImage);
+
+            return convolutionResults.Select(r => r.ToBitmap());
+        }
+
+        private FlatArray2DArray<int>[] GetMidResConvolution2(PhysicalImage physicalImage)
         {
             int GetConvolution(IEnumerable<int> convolutionPixels, double[] filter)
             {
-                int value = (int)convolutionPixels
+                int value = (int) convolutionPixels
                     .Zip(filter, (a, b) => a * b)
                     .Sum();
 
@@ -184,35 +206,104 @@ namespace ImageStats
             FastBitmap.FastBitmap bitmap = _loader.LoadImage(physicalImage.ImagePath);
             var bitmapAsIntensity = new FastBitmapToIntensity2DArrayAdapter(bitmap);
 
-            var convolution135Result = new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
-            var convolution45Result = new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
-            var convolutionHorizontalResult = new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
-            var convolutionVerticalResult = new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
-            var convolutionEdgeResult = new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolution135Result =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolution45Result =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionHorizontalResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionVerticalResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionEdgeResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
 
             bitmap.Lock();
             for (int y = 0; y < bitmap.Height; y++)
             {
                 for (int x = 0; x < bitmap.Width; x++)
                 {
-                    var convolutionPixels = GetConvolutionPixels(bitmapAsIntensity, new Rectangle(x - 1, y - 1, 3, 3)).ToArray();
+                    var convolutionPixels =
+                        GetConvolutionPixels(bitmapAsIntensity, new Rectangle(x - 1, y - 1, 3, 3)).ToArray();
 
-                    convolution135Result[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes135Filter);
-                    convolution45Result[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes45Filter);
-                    convolutionHorizontalResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResHorizontalFilter);
-                    convolutionVerticalResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResVerticalFilter);
-                    convolutionEdgeResult[x,y] = GetConvolution(convolutionPixels, StatsGenerator.MidResEdgeFilter);
+                    convolution135Result[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes135Filter);
+                    convolution45Result[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes45Filter);
+                    convolutionHorizontalResult[x, y] =
+                        GetConvolution(convolutionPixels, StatsGenerator.MidResHorizontalFilter);
+                    convolutionVerticalResult[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidResVerticalFilter);
+                    convolutionEdgeResult[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidResEdgeFilter);
                 }
             }
+
             bitmap.Unlock();
 
-            return new []{
-                convolution135Result.ToBitmap(),
-                convolution45Result.ToBitmap(),
-                convolutionHorizontalResult.ToBitmap(),
-                convolutionVerticalResult.ToBitmap(),
-                convolutionEdgeResult.ToBitmap(),
+            var convolutionResults = new[]
+            {
+                convolution135Result,
+                convolution45Result,
+                convolutionHorizontalResult,
+                convolutionVerticalResult,
+                convolutionEdgeResult,
             };
+            return convolutionResults;
+        }
+
+        private FlatArray2DArray<int>[] GetMidResConvolutionsReduced(PhysicalImage physicalImage)
+        {
+            int GetConvolution(IEnumerable<int> convolutionPixels, double[] filter)
+            {
+                int value = (int) convolutionPixels
+                    .Zip(filter, (a, b) => a * b)
+                    .Sum();
+
+                value = value < 0 ? 0 : value;
+                value = value > 255 ? 255 : value;
+
+                return value;
+            }
+
+            FastBitmap.FastBitmap bitmap = _loader.LoadImage(physicalImage.ImagePath);
+            var bitmapAsIntensity = new FastBitmapToIntensity2DArrayAdapter(bitmap);
+
+            var convolution135Result =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolution45Result =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionHorizontalResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionVerticalResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+            var convolutionEdgeResult =
+                new FlatArray2DArray<int>(new int[bitmap.Width * bitmap.Height], bitmap.Width, bitmap.Height);
+
+            bitmap.Lock();
+            for (int y = 0; y < bitmap.Height; y++)
+            {
+                for (int x = 0; x < bitmap.Width; x++)
+                {
+                    var convolutionPixels =
+                        GetConvolutionPixels(bitmapAsIntensity, new Rectangle(x - 1, y - 1, 3, 3)).ToArray();
+
+                    convolution135Result[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes135Filter);
+                    convolution45Result[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidRes45Filter);
+                    convolutionHorizontalResult[x, y] =
+                        GetConvolution(convolutionPixels, StatsGenerator.MidResHorizontalFilter);
+                    convolutionVerticalResult[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidResVerticalFilter);
+                    convolutionEdgeResult[x, y] = GetConvolution(convolutionPixels, StatsGenerator.MidResEdgeFilter);
+                }
+            }
+
+            bitmap.Unlock();
+
+            var convolutionResults = new[]
+            {
+                convolution135Result,
+                convolution45Result,
+                convolutionHorizontalResult,
+                convolutionVerticalResult,
+                convolutionEdgeResult,
+            };
+
+            return convolutionResults.Select();
         }
 
         private IEnumerable<int> GetConvolutionPixels(I2DArray<int> bitmap, Rectangle rectangle)

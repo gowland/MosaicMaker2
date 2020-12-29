@@ -69,7 +69,7 @@ namespace MosaicMaker2
             OnPropertyChanged(nameof(SourceImage));
 
             StatsGenerator statsGenerator = new StatsGenerator(Loader);
-            var convolutionImages = statsGenerator.GetMidResConvolution(img.Image).Select(bm => bm.ToBitmapImage());
+            var convolutionImages = statsGenerator.GetMidResConvolutionAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
             ConvolutionObservableCollection.Clear();
             foreach (var convolutionImage in convolutionImages)
             {
