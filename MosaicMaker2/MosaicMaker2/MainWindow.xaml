@@ -14,6 +14,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <Image Height="100" Width="100" Source="{Binding SourceImage}"/>
@@ -35,7 +36,17 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <ListBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding MatchingImages}">
+        <ListBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ConvolutionReducedImages}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="OrangeRed" BorderThickness="1">
+                        <Image Height="100" Width="100" Source="{Binding}"/>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <ListBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding MatchingImages}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="OrangeRed" BorderThickness="1">

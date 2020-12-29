@@ -17,29 +17,29 @@ namespace ImageStats
         private static readonly double[] LowResSingleIntFilter = {0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,};
         private static readonly double[] ReduceIdentityFilter = { 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0, 1/25.0 };
         private static readonly double[] MidResEdgeFilter = {
-            -1.0, -1.0, -1.0, 
-            -1.0,  8, -1.0, 
-            -1.0, -1.0, -1.0, 
+            -1.0, -1.0, -1.0,
+            -1.0,  8, -1.0,
+            -1.0, -1.0, -1.0,
         };
         private static readonly double[] MidResHorizontalFilter = {
-            1,  0, -1, 
-            2,  0, -2, 
-            1,  0, -1, 
+            1,  0, -1,
+            2,  0, -2,
+            1,  0, -1,
         };
         private static readonly double[] MidResVerticalFilter = {
-            1,  2,  1, 
-            0,  0,  0, 
-            -1, -2, -1, 
+            1,  2,  1,
+            0,  0,  0,
+            -1, -2, -1,
         };
         private static readonly double[] MidRes45Filter = {
-            -1, -1,  2, 
-            -1,  2, -1, 
-            2, -1, -1, 
+            -1, -1,  2,
+            -1,  2, -1,
+            2, -1, -1,
         };
         private static readonly double[] MidRes135Filter = {
-            2, -1, -1, 
-            -1,  2, -1, 
-            -1, -1,  2, 
+            2, -1, -1,
+            -1,  2, -1,
+            -1, -1,  2,
         };
 
         public StatsGenerator(IImageLoader loader)
@@ -94,7 +94,7 @@ namespace ImageStats
             List<int> lowResBPoints = new List<int>(12);
             List<int> lowResIntensityPoints = new List<int>(12);
 
-            List<int> midResVerticalPoints = new List<int>(48);
+            // List<int> midResVerticalPoints = new List<int>(48);
 
             foreach (var lowResRect in GetLowResRectangles(sourceRectangle))
             {
@@ -125,15 +125,16 @@ namespace ImageStats
             };
         }
 
-        private IEnumerable<FlatArray2DArray<int>> Reduce(FlatArray2DArray<int> source)
+        private FlatArray2DArray<int> Reduce(FlatArray2DArray<int> source)
         {
             var rect = new Rectangle(0,0,source.Width,source.Height);
             var subRects = GetReductionIdentityRectangles(rect);
-            var reduced = subRects.Select(r => ApplyFilter(source., i => i, ReduceIdentityFilter));
-            return new FlatArray2DArray<int>(reduced);
+            var reduced = subRects
+                .Select(r => ApplyFilter(GetConvolutionPixels(source, r).ToArray(), ReduceIdentityFilter));
+            return new FlatArray2DArray<int>(reduced, source.Width/5, source.Height/5);
         }
 
-        public int ApplyFilter<T>(T[] colors, Func<T, int> colorToIntFunc, double[] filter)
+        private int ApplyFilter<T>(T[] colors, Func<T, int> colorToIntFunc, double[] filter)
         {
             return (int) colors
                 .Select(colorToIntFunc)
@@ -141,7 +142,14 @@ namespace ImageStats
                 .Sum();
         }
 
-        public ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
+        private int ApplyFilter(int[] colors, double[] filter)
+        {
+            return (int) colors
+                .Zip(filter, (v, f) => v * f)
+                .Sum();
+        }
+
+        private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
         {
             var img = _loader.LoadImage(physicalImage.ImagePath);
             IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
@@ -187,6 +195,15 @@ namespace ImageStats
             var convolutionResults = GetMidResConvolution2(physicalImage);
 
             return convolutionResults.Select(r => r.ToBitmap());
+        }
+
+        public IEnumerable<Bitmap> GetMidResConvolutionReducedAsBitmap(PhysicalImage physicalImage) // Only for demo
+        {
+            var convolutionResults = GetMidResConvolution2(physicalImage);
+
+            return convolutionResults
+                .Select(Reduce)
+                .Select(r => r.ToBitmap());
         }
 
         private FlatArray2DArray<int>[] GetMidResConvolution2(PhysicalImage physicalImage)
@@ -247,6 +264,7 @@ namespace ImageStats
             return convolutionResults;
         }
 
+        /*
         private FlatArray2DArray<int>[] GetMidResConvolutionsReduced(PhysicalImage physicalImage)
         {
             int GetConvolution(IEnumerable<int> convolutionPixels, double[] filter)
@@ -305,6 +323,7 @@ namespace ImageStats
 
             return convolutionResults.Select();
         }
+        */
 
         private IEnumerable<int> GetConvolutionPixels(I2DArray<int> bitmap, Rectangle rectangle)
         {

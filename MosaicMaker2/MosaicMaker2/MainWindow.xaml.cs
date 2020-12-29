@@ -46,6 +46,7 @@ namespace MosaicMaker2
     public class MainWindowViewModel : INotifyPropertyChanged
     {
         private static readonly ObservableCollection<BitmapImage> ConvolutionObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
+        private static readonly ObservableCollection<BitmapImage> ConvolutionReducedObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private readonly Class1 class1;
         private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
@@ -54,6 +55,7 @@ namespace MosaicMaker2
         {
             class1 = new Class1(Loader);
             ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
+            ConvolutionReducedImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionReducedObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
         }
 
@@ -70,10 +72,19 @@ namespace MosaicMaker2
 
             StatsGenerator statsGenerator = new StatsGenerator(Loader);
             var convolutionImages = statsGenerator.GetMidResConvolutionAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
+            var convolutionReducedImages = statsGenerator.GetMidResConvolutionReducedAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
+
             ConvolutionObservableCollection.Clear();
+            ConvolutionReducedObservableCollection.Clear();
+
             foreach (var convolutionImage in convolutionImages)
             {
                 ConvolutionObservableCollection.Add(convolutionImage);
+            }
+
+            foreach (var convolutionImage in convolutionReducedImages)
+            {
+                ConvolutionReducedObservableCollection.Add(convolutionImage);
             }
 
             var matchedImages = class1.CompareImageToAlphabet(img.Image, firstSegment)
@@ -92,6 +103,7 @@ namespace MosaicMaker2
         }
 
         public ReadOnlyObservableCollection<BitmapImage> ConvolutionImages { get; set; }
+        public ReadOnlyObservableCollection<BitmapImage> ConvolutionReducedImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> MatchingImages { get; set; }
         public BitmapImage SourceImage { get; set; }
 
