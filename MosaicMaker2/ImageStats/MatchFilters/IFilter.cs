@@ -2,6 +2,6 @@
 {
     public interface IFilter
     {
-        FilterResult Compare(Stats.ImageStats a, Stats.ImageStats b);
+        FilterResult Compare(Stats.BasicStats a, Stats.BasicStats b);
     }
 }

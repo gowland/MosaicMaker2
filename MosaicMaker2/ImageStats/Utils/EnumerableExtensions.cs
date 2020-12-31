@@ -153,5 +153,15 @@ namespace ImageStats.Utils
         {
             return list.OrderBy(_ => _rand.Next());
         }
+
+        public static IEnumerable<IEnumerable<T>> AsPages<T>(this IEnumerable<T> orig, int pageSize)
+        {
+            var q = orig;
+            while (q.Any())
+            {
+                yield return q.Take(pageSize);
+                q = q.Skip(pageSize);
+            }
+        }
     }
 }

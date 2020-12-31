@@ -55,6 +55,12 @@ namespace ImageStats
             return regionCreationStrategy.GetRegions(source);
         }
 
+        public IEnumerable<Rectangle> GetChunks(Rectangle source)
+        {
+            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 40, 30);
+            return regionCreationStrategy.GetRegions(source);
+        }
+
         private IEnumerable<Rectangle> GetMidResRectangles(Rectangle source)
         {
             FixedSizeRegionCreationStrategy regionCreationStrategy = new FixedSizeRegionCreationStrategy(3, 3, 1, 1);
@@ -73,28 +79,26 @@ namespace ImageStats
             return regionCreationStrategy.GetRegions(source);
         }
 
-        public Stats.ImageStats GetStats(BitmapAdapter bitmap, ImageManipulationInfo manipulationInfo)
+        public BasicStats GetStats(BitmapAdapter bitmap, ImageManipulationInfo manipulationInfo)
         {
+            Console.WriteLine(manipulationInfo.ToString());
             var fast = new FastBitmap.FastBitmap(bitmap.GetSegment(manipulationInfo));
-            return GetStats(fast, new Rectangle(0,0,fast.Width, fast.Height));
+            return GetBasicStats(fast, new Rectangle(0,0,fast.Width, fast.Height));
         }
 
-        public Stats.ImageStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        public Stats.BasicStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
             global::FastBitmap.FastBitmap bitmap = _loader.LoadImage(image.ImagePath);
             var sourceRectangle = manipulationInfo.AsRectangle();
-            return GetStats(bitmap, sourceRectangle);
+            return GetBasicStats(bitmap, sourceRectangle);
         }
 
-        private Stats.ImageStats GetStats(FastBitmap.FastBitmap bitmap, Rectangle sourceRectangle)
+        private BasicStats GetBasicStats(FastBitmap.FastBitmap bitmap, Rectangle sourceRectangle)
         {
-
             List<int> lowResRPoints = new List<int>(12);
             List<int> lowResGPoints = new List<int>(12);
             List<int> lowResBPoints = new List<int>(12);
             List<int> lowResIntensityPoints = new List<int>(12);
-
-            // List<int> midResVerticalPoints = new List<int>(48);
 
             foreach (var lowResRect in GetLowResRectangles(sourceRectangle))
             {
@@ -106,22 +110,57 @@ namespace ImageStats
                 lowResIntensityPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), LowResSingleIntFilter));
             }
 
-            foreach (var midResRect in GetMidResRectangles(sourceRectangle))
-            {
-                var segment = bitmap.GetColors(midResRect).ToArray();
-
-//                lowResRPoints.Add(ApplyFilter(segment, c => c.R, lowResSingleIntFilter));
-//                lowResGPoints.Add(ApplyFilter(segment, c => c.G, lowResSingleIntFilter));
-//                lowResBPoints.Add(ApplyFilter(segment, c => c.B, lowResSingleIntFilter));
-//                lowResIntensityPoints.Add(ApplyFilter(segment, c => (int)((c.R + c.G + c.B)/3.0), lowResSingleIntFilter));
-            }
-
-            return new Stats.ImageStats()
+            return new BasicStats()
             {
                 LowResR = new ConvolutionResult(lowResRPoints),
                 LowResG = new ConvolutionResult(lowResGPoints),
                 LowResB = new ConvolutionResult(lowResBPoints),
                 LowResIntensity = new ConvolutionResult(lowResIntensityPoints),
+            };
+        }
+
+        public AdvancedStats GetAdvancedStats(FastBitmap.FastBitmap bitmap, Rectangle sourceRectangle)
+        {
+
+            List<int> midResAngle45Points = new List<int>(48);
+            List<int> midResAngle135Points = new List<int>(48);
+            List<int> midResVerticalPoints = new List<int>(48);
+            List<int> midResHorizontalPoints = new List<int>(48);
+            List<int> midResEdgePoints = new List<int>(48);
+
+            List<int> midResRPoints = new List<int>(48);
+            List<int> midResGPoints = new List<int>(48);
+            List<int> midResBPoints = new List<int>(48);
+            List<int> midResIntensityPoints = new List<int>(48);
+
+            foreach (var midResRect in GetMidResRectangles(sourceRectangle))
+            {
+                var segment = bitmap.GetColors(midResRect).ToArray();
+
+                midResAngle45Points.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidRes45Filter));
+                midResAngle135Points.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidRes135Filter));
+                midResVerticalPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResVerticalFilter));
+                midResHorizontalPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResHorizontalFilter));
+                midResEdgePoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResEdgeFilter));
+
+                midResRPoints.Add(ApplyFilter(segment, c => c.R, ReduceIdentityFilter));
+                midResGPoints.Add(ApplyFilter(segment, c => c.G, ReduceIdentityFilter));
+                midResBPoints.Add(ApplyFilter(segment, c => c.B, ReduceIdentityFilter));
+                midResIntensityPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), ReduceIdentityFilter));
+            }
+
+            return new AdvancedStats()
+            {
+                MidRes45 = new ConvolutionResult(midResAngle45Points),
+                MidRes135 = new ConvolutionResult(midResAngle135Points),
+                MidResVertical = new ConvolutionResult(midResVerticalPoints),
+                MidResHorizontal = new ConvolutionResult(midResHorizontalPoints),
+                MidResEdge = new ConvolutionResult(midResEdgePoints),
+
+                MidResR = new ConvolutionResult(midResRPoints),
+                MidResG = new ConvolutionResult(midResGPoints),
+                MidResB = new ConvolutionResult(midResBPoints),
+                MidResIntensity = new ConvolutionResult(midResIntensityPoints),
             };
         }
 
@@ -157,9 +196,9 @@ namespace ImageStats
             foreach (var rectangle in rects)
             {
                 var imageManipulationInfo = new ImageManipulationInfo(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
-                Stats.ImageStats imageStats = GetStats(physicalImage,
+                Stats.BasicStats basicStats = GetStats(physicalImage,
                     imageManipulationInfo);
-                segmentStats.Add(new SegmentAndStats(imageManipulationInfo, imageStats));
+                segmentStats.Add(new SegmentAndStats(imageManipulationInfo, basicStats));
             }
 
             return new ImageAndStats(physicalImage, segmentStats);
@@ -167,10 +206,20 @@ namespace ImageStats
 
         public void CreateIndex()
         {
-            ImagesAndStats = GetFiles(PathToAlphabet)
-                .Select(GetMatchableSegments)
-                .ToArray();
-            Serializer.WriteToJsonFile(Path.Combine(PathToAlphabet, IndexFileName), new Alphabet(ImagesAndStats));
+            var path = Path.Combine(PathToAlphabet, IndexFileName);
+            File.Delete(path);
+
+            /*
+            foreach (var page in GetFiles(PathToAlphabet).AsPages(1000))
+            {
+                var stats = page.Select(GetMatchableSegments).ToArray();
+                Serializer.WriteToJsonFile(path, new Alphabet(stats), append:true);
+            }
+            */
+
+            Alphabet alphabet = new Alphabet(GetFiles(PathToAlphabet).Select(GetMatchableSegments).ToArray());
+            Serializer.WriteToJsonFile(path, alphabet);
+            this.ImagesAndStats = alphabet.ImagesAndStats;
         }
 
         public void LoadIndex()

@@ -14,7 +14,7 @@ namespace ImageStats.MatchFilters
             _name = name ?? Guid.NewGuid().ToString();
         }
 
-        public CompoundFilterBuilder WithConvolutionResultFilter(Func<int, bool> isWithinThresholdFunc, Func<Stats.ImageStats, ConvolutionResult> getConvolutionResult, string name)
+        public CompoundFilterBuilder WithConvolutionResultFilter(Func<int, bool> isWithinThresholdFunc, Func<Stats.BasicStats, ConvolutionResult> getConvolutionResult, string name)
         {
             _filters.Add(new ConvolutionResultFilter(isWithinThresholdFunc, getConvolutionResult, name));
             return this;

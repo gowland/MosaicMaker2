@@ -68,7 +68,7 @@
     <Compile Include="Stats\ImageAndStats.cs" />
     <Compile Include="Stats\ImageManipulationInfo.cs" />
     <Compile Include="Stats\ImageManipulationInfoExtensions.cs" />
-    <Compile Include="Stats\ImageStats.cs" />
+    <Compile Include="Stats\BasicStats.cs" />
     <Compile Include="Stats\PhysicalImage.cs" />
     <Compile Include="Stats\SegmentAndStats.cs" />
     <Compile Include="Utils\ArrayExtensions.cs" />

@@ -15,6 +15,7 @@ namespace ImageStats
 
         private readonly StatsGenerator _statsGenerator;
         private MatchFinder _matchFinder;
+        private ImageAndStats _sourceImageStats;
 
         public Class1(IImageLoader loader)
         {
@@ -33,9 +34,26 @@ namespace ImageStats
             _matchFinder = new MatchFinder(new Alphabet(_statsGenerator.ImagesAndStats));
         }
 
+        public void LoadSourceImage(string path)
+        {
+            var bmp = Loader.LoadImageAsBitmap(path);
+            BitmapAdapter adapter = new BitmapAdapter(bmp);
+            var rects = _statsGenerator
+                .GetChunks(new Rectangle(0, 0, bmp.Width, bmp.Height))
+                .Select(r => new ImageManipulationInfo(r.X, r.Y, r.Width, r.Height));
+
+
+            _sourceImageStats = new ImageAndStats(new PhysicalImage(path),
+                rects
+                    .Select(r => new SegmentAndStats(r,  _statsGenerator.GetStats(adapter, r)))
+                    .ToArray()
+                );
+        }
+
         public ImageAndStats GetRandom()
         {
-            return _statsGenerator.ImagesAndStats.Random().First();
+            // return _statsGenerator.ImagesAndStats.Random().First();
+            return new ImageAndStats(_sourceImageStats.Image, _sourceImageStats.Segments);
         }
 
         public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
@@ -49,16 +67,25 @@ namespace ImageStats
             return CompareImageToAlphabet(_statsGenerator.GetStats(image, manipulationInfo));
         }
 
-        public IEnumerable<Bitmap> CompareImageToAlphabet(Stats.ImageStats origStats)
+        public IEnumerable<Bitmap> CompareImageToAlphabet(BasicStats origStats)
         {
             return _matchFinder.GetMatches(origStats).SelectMany(r =>
             {
-                var segmentsAsString = string.Join(",", r.Segments
-                    .Select(s => s.ToString()));
-                Console.WriteLine($"Returning match {r.Image.ImagePath} with segments {segmentsAsString}");
                 var img = BitmapAdapter.FromPath(r.Image.ImagePath, Loader);
-                return r.Segments.Select(s => img.GetSegment(s.ManipulationInfo));
+                return r.ManipulationInfos.Select(s => img.GetSegment(s));
             });
+        }
+
+        public IEnumerable<Bitmap> GetRefinedMatches(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        {
+            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(image, manipulationInfo));
+            var bitmap = Loader.LoadImage(image.ImagePath);
+            return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.AsRectangle()), matches, Loader, _statsGenerator)
+                .SelectMany(m =>
+                {
+                    var img = BitmapAdapter.FromPath(m.Image.ImagePath, Loader);
+                    return m.ManipulationInfos.Select(s => img.GetSegment(s));
+                });
         }
     }
 

@@ -22,6 +22,7 @@ using System.Windows.Shapes;
 using FastBitmap;
 using ImageStats;
 using ImageStats.Stats;
+using ImageStats.Utils;
 
 namespace MosaicMaker2
 {
@@ -48,15 +49,18 @@ namespace MosaicMaker2
         private static readonly ObservableCollection<BitmapImage> ConvolutionObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> ConvolutionReducedObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
+        private static readonly ObservableCollection<BitmapImage> RefinedMatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private readonly Class1 class1;
         private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
 
         public MainWindowViewModel()
         {
             class1 = new Class1(Loader);
+            class1.LoadSourceImage(@"C:\src\MosaicMaker2\20201224_214836.jpg");
             ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
             ConvolutionReducedImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionReducedObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
+            RefinedMatchingImages = new ReadOnlyObservableCollection<BitmapImage>(RefinedMatchesObservableCollection);
         }
 
         public void LoadIndex() => class1.LoadIndex();
@@ -66,17 +70,17 @@ namespace MosaicMaker2
         {
             var img = class1.GetRandom();
 
-            var firstSegment = new ImageManipulationInfo(0, 0, 40, 30);
-            SourceImage = class1.GetBitmap(img.Image, firstSegment).ToBitmapImage();
+            SourceImage = class1.GetBitmap(img.Image, img.Segments.Random().First().ManipulationInfo).ToBitmapImage();
             OnPropertyChanged(nameof(SourceImage));
 
-            StatsGenerator statsGenerator = new StatsGenerator(Loader);
-            var convolutionImages = statsGenerator.GetMidResConvolutionAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
-            var convolutionReducedImages = statsGenerator.GetMidResConvolutionReducedAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
+            // StatsGenerator statsGenerator = new StatsGenerator(Loader);
+            // var convolutionImages = statsGenerator.GetMidResConvolutionAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
+            // var convolutionReducedImages = statsGenerator.GetMidResConvolutionReducedAsBitmap(img.Image).Select(bm => bm.ToBitmapImage());
 
             ConvolutionObservableCollection.Clear();
             ConvolutionReducedObservableCollection.Clear();
 
+            /*
             foreach (var convolutionImage in convolutionImages)
             {
                 ConvolutionObservableCollection.Add(convolutionImage);
@@ -86,7 +90,9 @@ namespace MosaicMaker2
             {
                 ConvolutionReducedObservableCollection.Add(convolutionImage);
             }
+            */
 
+            /*
             var matchedImages = class1.CompareImageToAlphabet(img.Image, firstSegment)
                 .Select(i => i.ToBitmapImage());
             MatchesObservableCollection.Clear();
@@ -94,7 +100,19 @@ namespace MosaicMaker2
             {
                 MatchesObservableCollection.Add(matchedImage);
             }
+            */
+
+
+            var refinedMatchedImages = class1.GetRefinedMatches(img.Image, firstSegment)
+                .Select(i => i.ToBitmapImage());
+            RefinedMatchesObservableCollection.Clear();
+            foreach (var matchedImage in refinedMatchedImages)
+            {
+                RefinedMatchesObservableCollection.Add(matchedImage);
+            }
+
             OnPropertyChanged(nameof(MatchingImages));
+            OnPropertyChanged(nameof(RefinedMatchingImages));
         }
 
         private void DumpArr(int[] arr)
@@ -105,6 +123,7 @@ namespace MosaicMaker2
         public ReadOnlyObservableCollection<BitmapImage> ConvolutionImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> ConvolutionReducedImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> MatchingImages { get; set; }
+        public ReadOnlyObservableCollection<BitmapImage> RefinedMatchingImages { get; set; }
         public BitmapImage SourceImage { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;

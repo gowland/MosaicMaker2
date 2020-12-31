@@ -13,7 +13,7 @@ namespace ImageStats.MatchFilters
             _filters = filters;
             _name = name;
         }
-        public FilterResult Compare(Stats.ImageStats a, Stats.ImageStats b)
+        public FilterResult Compare(Stats.BasicStats a, Stats.BasicStats b)
         {
             var failedFilters = _filters
                 .Select(filter => filter.Compare(a, b))

@@ -5,13 +5,13 @@ namespace ImageStats.Stats
     [Serializable]
     public struct SegmentAndStats
     {
-        public SegmentAndStats(ImageManipulationInfo manipulationInfo, ImageStats stats)
+        public SegmentAndStats(ImageManipulationInfo manipulationInfo, BasicStats stats)
         {
             ManipulationInfo = manipulationInfo;
             Stats = stats;
         }
 
         public ImageManipulationInfo ManipulationInfo { get; set; }
-        public ImageStats Stats { get; set; }
+        public BasicStats Stats { get; set; }
     }
 }
