@@ -140,18 +140,28 @@ namespace ImageStats
 
             foreach (var midResRect in GetMidResRectangles(sourceRectangle))
             {
-                var segment = bitmap.GetColors(midResRect).ToArray();
+                Color[] segment = bitmap.GetColors(midResRect).ToArray();
 
+                int[] greyScaleSegment = segment.Select(c => (int) ((c.R + c.G + c.B) / 3.0)).ToArray();
+
+                /*
                 midResAngle45Points.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidRes45Filter));
                 midResAngle135Points.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidRes135Filter));
                 midResVerticalPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResVerticalFilter));
                 midResHorizontalPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResHorizontalFilter));
                 midResEdgePoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), MidResEdgeFilter));
+                */
+                midResAngle45Points.Add(ApplyFilter(greyScaleSegment, MidRes45Filter));
+                midResAngle135Points.Add(ApplyFilter(greyScaleSegment, MidRes135Filter));
+                midResVerticalPoints.Add(ApplyFilter(greyScaleSegment, MidResVerticalFilter));
+                midResHorizontalPoints.Add(ApplyFilter(greyScaleSegment, MidResHorizontalFilter));
+                midResEdgePoints.Add(ApplyFilter(greyScaleSegment, MidResEdgeFilter));
 
                 midResRPoints.Add(ApplyFilter(segment, c => c.R, ReduceIdentityFilter));
                 midResGPoints.Add(ApplyFilter(segment, c => c.G, ReduceIdentityFilter));
                 midResBPoints.Add(ApplyFilter(segment, c => c.B, ReduceIdentityFilter));
-                midResIntensityPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), ReduceIdentityFilter));
+                // midResIntensityPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), ReduceIdentityFilter));
+                midResIntensityPoints.Add(ApplyFilter(greyScaleSegment, ReduceIdentityFilter));
             }
 
             return new AdvancedStats()

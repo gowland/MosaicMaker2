@@ -134,7 +134,8 @@ namespace MosaicMaker2
 
                 // Select a match
                 // TODO: Do better
-                var bestMatch = refinedMatchedImages.SelectRandom();
+                // var bestMatch = refinedMatchedImages.SelectRandom();
+                var bestMatch = refinedMatchedImages.First();
 
                 var match = new SourceAndMatch(segmentAndStatse.ManipulationInfo, bestMatch);
                 matches.Add(match);
