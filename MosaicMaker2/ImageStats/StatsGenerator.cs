@@ -86,9 +86,14 @@ namespace ImageStats
             return GetBasicStats(fast, new Rectangle(0,0,fast.Width, fast.Height));
         }
 
-        public Stats.BasicStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        public BasicStats GetStats(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
             global::FastBitmap.FastBitmap bitmap = _loader.LoadImage(image.ImagePath);
+            return GetStats(bitmap, manipulationInfo);
+        }
+
+        public BasicStats GetStats(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
+        {
             var sourceRectangle = manipulationInfo.AsRectangle();
             return GetBasicStats(bitmap, sourceRectangle);
         }

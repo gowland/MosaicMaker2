@@ -50,7 +50,7 @@ namespace ImageStats
                 );
         }
 
-        public ImageAndStats GetRandom()
+        public ImageAndStats GetSourceImage()
         {
             // return _statsGenerator.ImagesAndStats.Random().First();
             return new ImageAndStats(_sourceImageStats.Image, _sourceImageStats.Segments);
@@ -78,9 +78,15 @@ namespace ImageStats
 
         public IEnumerable<Bitmap> GetRefinedMatches(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
-            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(image, manipulationInfo));
             var bitmap = Loader.LoadImage(image.ImagePath);
-            return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.AsRectangle()), matches, Loader, _statsGenerator)
+            return GetRefinedMatches(bitmap, manipulationInfo);
+        }
+
+        public IEnumerable<Bitmap> GetRefinedMatches(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
+        {
+            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
+            return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.AsRectangle()), matches,
+                    Loader, _statsGenerator)
                 .SelectMany(m =>
                 {
                     var img = BitmapAdapter.FromPath(m.Image.ImagePath, Loader);
@@ -119,15 +125,79 @@ namespace ImageStats
 
     public class SourceAndMatch
     {
-        public SourceAndMatch(ImageManipulationInfo sourceSegment, PhysicalImage replacementImage, ImageManipulationInfo replacementSegment)
+        public SourceAndMatch(ImageManipulationInfo sourceSegment, Bitmap replacementImage)
         {
             SourceSegment = sourceSegment;
             ReplacementImage = replacementImage;
-            ReplacementSegment = replacementSegment;
         }
 
         public ImageManipulationInfo SourceSegment { get; }
-        public PhysicalImage ReplacementImage { get; }
-        public ImageManipulationInfo ReplacementSegment { get; }
+        public Bitmap ReplacementImage { get; }
+    }
+
+
+    public class ReconstructedImageBuilder
+    {
+        private readonly FastBitmap.FastBitmap _target;
+        private readonly double _newImagePercentage;
+        private readonly double _oldImagePercentage;
+        private readonly Bitmap _newImage;
+
+        public ReconstructedImageBuilder(FastBitmap.FastBitmap target, double newImagePercentage)
+        {
+            _target = target;
+            _newImagePercentage = newImagePercentage;
+            _oldImagePercentage = (1 - _newImagePercentage);
+            _newImage = new Bitmap(target.Width, target.Height);
+        }
+
+        public void SaveAs(string path)
+        {
+            _newImage.Save(path);
+        }
+
+        public void ApplyMatches(IEnumerable<SourceAndMatch> matches)
+        {
+            _target.Lock();
+            foreach (var imageMatch in matches)
+            {
+                WriteSourceAndFill(imageMatch);
+            }
+            _target.Unlock();
+        }
+
+        private void WriteSourceAndFill(SourceAndMatch match)
+        {
+            var fillImage = new FastBitmap.FastBitmap(match.ReplacementImage);
+
+            fillImage.Lock();
+
+            ImageManipulationInfo hole = match.SourceSegment;
+            for (int xOffset = 0; xOffset < hole.Width; xOffset++)
+            {
+                for (int yOffset = 0; yOffset < hole.Height; yOffset++)
+                {
+                    Color holeColor = _target.GetPixel(hole.StartX + xOffset, hole.StartY + yOffset);
+                    Color fillColor = fillImage.GetPixel(xOffset, yOffset);
+                    _newImage.SetPixel(hole.StartX + xOffset, hole.StartY + yOffset, GetNewColor(holeColor, fillColor));
+                }
+            }
+
+            fillImage.Unlock();
+        }
+
+        private Color GetNewColor(Color source, Color fill)
+        {
+            return Color.FromArgb(
+                255,
+                GetNewImageValue(source.R, fill.R),
+                GetNewImageValue(source.G, fill.G),
+                GetNewImageValue(source.B, fill.B));
+        }
+
+        private int GetNewImageValue(int source, int fill)
+        {
+            return (int)Math.Floor((source*_oldImagePercentage) + (fill*_newImagePercentage));
+        }
     }
 }

@@ -22,9 +22,10 @@
         <Image Height="100" Width="100" Source="{Binding SourceImage}"/>
 
         <StackPanel Grid.Row="0" Grid.Column="1">
+            <Button x:Name="load">Load</Button>
+            <Button x:Name="build">Build</Button>
             <Button x:Name="next">Next</Button>
             <Rectangle Fill="Aquamarine" Height="2" Width="100" Margin="0,5"/>
-            <Button x:Name="load">Load</Button>
             <Button x:Name="create">Create</Button>
         </StackPanel>
 

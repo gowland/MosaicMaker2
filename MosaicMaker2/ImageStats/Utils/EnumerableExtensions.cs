@@ -40,7 +40,7 @@ namespace ImageStats.Utils
                 .Single();
         }
 
-        // Lifted from: https://stackoverflow.com/a/3670089/20570	
+        // Lifted from: https://stackoverflow.com/a/3670089/20570
         public static bool ScrambledEquals<T>(this IEnumerable<T> list1, IEnumerable<T> list2)
         {
             var cnt = new Dictionary<T, int>();
@@ -69,7 +69,7 @@ namespace ImageStats.Utils
             return cnt.Values.All(c => c == 0);
         }
 
-        // Lifted from: https://stackoverflow.com/a/3670089/20570	
+        // Lifted from: https://stackoverflow.com/a/3670089/20570
         public static bool ScrambledEquals<T>(this IEnumerable<T> list1, IEnumerable<T> list2, IEqualityComparer<T> comparer)
         {
             var cnt = new Dictionary<T, int>(comparer);
@@ -152,6 +152,11 @@ namespace ImageStats.Utils
         public static IEnumerable<T> Random<T>(this IEnumerable<T> list)
         {
             return list.OrderBy(_ => _rand.Next());
+        }
+
+        public static T SelectRandom<T>(this IEnumerable<T> list)
+        {
+            return list.OrderBy(_ => _rand.Next()).FirstOrDefault();
         }
 
         public static IEnumerable<IEnumerable<T>> AsPages<T>(this IEnumerable<T> orig, int pageSize)
