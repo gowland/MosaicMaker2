@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace ImageStats.Stats
@@ -32,5 +33,17 @@ namespace ImageStats.Stats
 
         public PhysicalImage Image { get; set; }
         public ImageManipulationInfo[] ManipulationInfos { get; set; }
+    }
+
+    public struct BitmapAndSegments
+    {
+        public BitmapAndSegments(FastBitmap.FastBitmap image, IEnumerable<ImageManipulationInfo> manipulationInfos)
+        {
+            Image = image;
+            ManipulationInfos = manipulationInfos.ToArray();
+        }
+
+        public FastBitmap.FastBitmap Image { get; }
+        public ImageManipulationInfo[] ManipulationInfos { get; }
     }
 }

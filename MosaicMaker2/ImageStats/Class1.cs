@@ -87,11 +87,8 @@ namespace ImageStats
             ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
             return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.AsRectangle()), matches,
                     Loader, _statsGenerator)
-                .SelectMany(m =>
-                {
-                    var img = BitmapAdapter.FromPath(m.Image.ImagePath, Loader);
-                    return m.ManipulationInfos.Select(s => img.GetSegment(s));
-                });
+                .Select(m => new {Image = new BitmapAdapter(m.Image.ToBitmap()), Segments = m.ManipulationInfos})
+                .SelectMany(m => m.Segments.Select(m.Image.GetSegment));
         }
     }
 

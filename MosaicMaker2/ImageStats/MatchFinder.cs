@@ -71,7 +71,7 @@ namespace ImageStats
                 .ToArray();
         }
 
-        public ImageSegments[] RefineMatches(AdvancedStats origStats, ImageSegments[] basicMatches, IImageLoader loader, StatsGenerator statsGenerator)
+        public BitmapAndSegments[] RefineMatches(AdvancedStats origStats, ImageSegments[] basicMatches, IImageLoader loader, StatsGenerator statsGenerator)
         {
             return basicMatches.Select(m => new
                 {
@@ -81,18 +81,11 @@ namespace ImageStats
                 })
                 .SelectMany(m => m.ManipulationInfos.Select(r => new
                 {
-                    Image = m.Image,
+                    ImagePath = m.Image,
+                    Image = m.Bitmap,
                     Stats = statsGenerator.GetAdvancedStats(m.Bitmap, r.AsRectangle()),
                     ManipulationInfo = r,
                 }))
-                /*
-                .OrderBy(m => m.Stats.MidResHorizontal.Difference(origStats.MidResHorizontal)
-                         + m.Stats.MidResVertical.Difference(origStats.MidResVertical)
-                         + 1.1 * m.Stats.MidRes45.Difference(origStats.MidRes45)
-                         + 1.1 * m.Stats.MidRes135.Difference(origStats.MidRes135)
-                         + 1.5 * m.Stats.MidResEdge.Difference(origStats.MidResEdge)
-                         )
-                */
                 .OrderBy(m =>
                         m.Stats.MidResR.Difference(origStats.MidResR)
                          + 1.1 * m.Stats.MidResG.Difference(origStats.MidResG)
@@ -100,8 +93,8 @@ namespace ImageStats
                          + 1.5 * m.Stats.MidResIntensity.Difference(origStats.MidResIntensity)
                          )
                 .Take(10)
-                .GroupBy(m => m.Image.ImagePath)
-                .Select(group => new ImageSegments(group.First().Image, group.Select(i => i.ManipulationInfo)))
+                .GroupBy(m => m.ImagePath.ImagePath)
+                .Select(group => new BitmapAndSegments(group.First().Image, group.Select(i => i.ManipulationInfo)))
                 .ToArray();
         }
 
