@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using FastBitmap;
@@ -83,7 +84,7 @@ namespace ImageStats
                 {
                     ImagePath = m.Image,
                     Image = m.Bitmap,
-                    Stats = statsGenerator.GetAdvancedStats(m.Bitmap, r.AsRectangle()),
+                    Stats = statsGenerator.GetAdvancedStats(m.Bitmap, r.Rectangle),
                     ManipulationInfo = r,
                 }))
                 .OrderBy(m =>

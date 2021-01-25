@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 
 namespace ImageStats.Stats
 {
@@ -7,16 +8,14 @@ namespace ImageStats.Stats
     {
         public ImageManipulationInfo(int startX, int startY, int width, int height)
         {
-            StartX = startX;
-            StartY = startY;
-            Width = width;
-            Height = height;
+            Rectangle = new Rectangle(startX, startY, width, height);
         }
 
-        public int StartX { get; set; }
-        public int StartY { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public int StartX => Rectangle.X;
+        public int StartY => Rectangle.Y;
+        public int Width => Rectangle.Width;
+        public int Height => Rectangle.Height;
+        public Rectangle Rectangle { get; }
 
         public override string ToString()
         {

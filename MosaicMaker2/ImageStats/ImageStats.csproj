@@ -50,6 +50,7 @@
     <Compile Include="ArrayAdapters\FlatArray2DArray.cs" />
     <Compile Include="ArrayAdapters\FlatArray2DArrayExtensions.cs" />
     <Compile Include="ArrayAdapters\I2DArray.cs" />
+    <Compile Include="BitmapAdapter.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="MatchFilters\CompoundFilter.cs" />
     <Compile Include="MatchFilters\CompoundFilterBuilder.cs" />
@@ -58,9 +59,11 @@
     <Compile Include="MatchFilters\IFilter.cs" />
     <Compile Include="MatchFinder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReconstructedImageBuilder.cs" />
     <Compile Include="RegionCreation\FixedSizeRegionCreationStrategy.cs" />
     <Compile Include="RegionCreation\IRegionCreationStrategy.cs" />
     <Compile Include="RegionCreation\NonOverlappingRegionCreationStrategy.cs" />
+    <Compile Include="SourceAndMatch.cs" />
     <Compile Include="StatsGenerator.cs" />
     <Compile Include="Stats\Alphabet.cs" />
     <Compile Include="Stats\ConvolutionResult.cs" />

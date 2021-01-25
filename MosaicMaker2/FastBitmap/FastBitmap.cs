@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Net.Mime;
 using System.Runtime.InteropServices;
 
 namespace FastBitmap
@@ -117,7 +116,7 @@ namespace FastBitmap
                 }
 
                 // Declare an array to hold the bytes of the bitmap
-                int bytes = Math.Abs((int)_bitmapData.Stride) * _bitmap.Height;
+                int bytes = Math.Abs(_bitmapData.Stride) * _bitmap.Height;
                 int[] argbValues = new int[bytes / BytesPerPixel];
 
                 // Copy the RGB values into the array
@@ -142,7 +141,7 @@ namespace FastBitmap
         {
             _bitmap = bitmap;
 
-            if (System.Drawing.Image.GetPixelFormatSize(bitmap.PixelFormat) != 32)
+            if (Image.GetPixelFormatSize(bitmap.PixelFormat) != 32)
             {
                 // Converting needs a transition for some reason: see http://stackoverflow.com/a/8194906/20570
                 var transitionBitmap = new Bitmap(bitmap);
@@ -250,7 +249,7 @@ namespace FastBitmap
         /// <exception cref="ArgumentOutOfRangeException">The provided coordinates are out of bounds of the bitmap</exception>
         public void SetPixel(int x, int y, Color color)
         {
-            SetPixel(x, y, (int)color.ToArgb());
+            SetPixel(x, y, color.ToArgb());
         }
 
         /// <summary>
@@ -278,19 +277,7 @@ namespace FastBitmap
         /// <exception cref="ArgumentOutOfRangeException">The provided coordinates are out of bounds of the bitmap</exception>
         public void SetPixel(int x, int y, uint color)
         {
-            if (!_locked)
-            {
-                throw new InvalidOperationException("The FastBitmap must be locked before any pixel operations are made");
-            }
-
-            if (x < 0 || x >= _width)
-            {
-                throw new ArgumentOutOfRangeException("The X component must be >= 0 and < width");
-            }
-            if (y < 0 || y >= _height)
-            {
-                throw new ArgumentOutOfRangeException("The Y component must be >= 0 and < height");
-            }
+            EnsureLockedAndValidCoords(x, y);
 
             *(uint*)(_scan0 + x + y * _strideWidth) = color;
         }
@@ -318,19 +305,7 @@ namespace FastBitmap
         /// <exception cref="ArgumentOutOfRangeException">The provided coordinates are out of bounds of the bitmap</exception>
         public int GetPixelInt(int x, int y)
         {
-            if (!_locked)
-            {
-                throw new InvalidOperationException("The FastBitmap must be locked before any pixel operations are made");
-            }
-
-            if (x < 0 || x >= _width)
-            {
-                throw new ArgumentOutOfRangeException("The X component must be >= 0 and < width");
-            }
-            if (y < 0 || y >= _height)
-            {
-                throw new ArgumentOutOfRangeException("The Y component must be >= 0 and < height");
-            }
+            EnsureLockedAndValidCoords(x, y);
 
             return *(_scan0 + x + y * _strideWidth);
         }
@@ -345,6 +320,13 @@ namespace FastBitmap
         /// <exception cref="ArgumentOutOfRangeException">The provided coordinates are out of bounds of the bitmap</exception>
         public uint GetPixelUInt(int x, int y)
         {
+            EnsureLockedAndValidCoords(x, y);
+
+            return *((uint*)_scan0 + x + y * _strideWidth);
+        }
+
+        private void EnsureLockedAndValidCoords(int x, int y)
+        {
             if (!_locked)
             {
                 throw new InvalidOperationException("The FastBitmap must be locked before any pixel operations are made");
@@ -352,14 +334,13 @@ namespace FastBitmap
 
             if (x < 0 || x >= _width)
             {
-                throw new ArgumentOutOfRangeException("The X component must be >= 0 and < width");
-            }
-            if (y < 0 || y >= _height)
-            {
-                throw new ArgumentOutOfRangeException("The Y component must be >= 0 and < height");
+                throw new ArgumentOutOfRangeException(nameof(_width), "The X component must be >= 0 and < width");
             }
 
-            return *((uint*)_scan0 + x + y * _strideWidth);
+            if (y < 0 || y >= _height)
+            {
+                throw new ArgumentOutOfRangeException(nameof(_height), "The Y component must be >= 0 and < height");
+            }
         }
 
         /// <summary>
@@ -428,7 +409,7 @@ namespace FastBitmap
         /// <param name="color">The color to clear the bitmap with</param>
         public void Clear(Color color)
         {
-            Clear((int)color.ToArgb());
+            Clear(color.ToArgb());
         }
 
         /// <summary>
@@ -507,7 +488,7 @@ namespace FastBitmap
             // Throw exception when trying to copy same bitmap over
             if (source == _bitmap)
             {
-                throw new ArgumentException("Copying regions across the same bitmap is not supported", "source");
+                throw new ArgumentException("Copying regions across the same bitmap is not supported", nameof(source));
             }
 
             Rectangle srcBitmapRect = new Rectangle(0, 0, source.Width, source.Height);
@@ -531,8 +512,8 @@ namespace FastBitmap
             srcBitmapRect = Rectangle.Intersect(srcBitmapRect, new Rectangle(-destRect.X + srcRect.X, -destRect.Y + srcRect.Y, _width, _height));
 
             // Calculate the rectangle containing the maximum possible area that is supposed to be affected by the copy region operation
-            int copyWidth = Math.Min((int)srcBitmapRect.Width, (int)destBitmapRect.Width);
-            int copyHeight = Math.Min((int)srcBitmapRect.Height, (int)destBitmapRect.Height);
+            int copyWidth = Math.Min(srcBitmapRect.Width, destBitmapRect.Width);
+            int copyHeight = Math.Min(srcBitmapRect.Height, destBitmapRect.Height);
 
             if (copyWidth == 0 || copyHeight == 0)
                 return;
@@ -558,7 +539,7 @@ namespace FastBitmap
                     long offsetSrc = (srcX + srcY * fastSource._strideWidth);
                     long offsetDest = (destX + destY * _strideWidth);
 
-                    memcpy((void*)(_scan0 + offsetDest), (void*)(fastSource._scan0 + offsetSrc), strideWidth);
+                    memcpy(_scan0 + offsetDest, fastSource._scan0 + offsetSrc, strideWidth);
                 }
             }
         }
@@ -591,7 +572,7 @@ namespace FastBitmap
             using (FastBitmap fastSource = source.FastLock(),
                 fastTarget = target.FastLock())
             {
-                memcpy((IntPtr)fastTarget.Scan0, fastSource.Scan0, (ulong)(fastSource.Height * fastSource._strideWidth * BytesPerPixel));
+                memcpy(fastTarget.Scan0, fastSource.Scan0, (ulong)(fastSource.Height * fastSource._strideWidth * BytesPerPixel));
             }
 
             return true;
@@ -604,7 +585,7 @@ namespace FastBitmap
         /// <param name="color">The color to clear the bitmap with</param>
         public static void ClearBitmap(Bitmap bitmap, Color color)
         {
-            ClearBitmap(bitmap, (int)color.ToArgb());
+            ClearBitmap(bitmap, color.ToArgb());
         }
 
         /// <summary>

@@ -94,7 +94,7 @@ namespace ImageStats
 
         public BasicStats GetStats(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
         {
-            return GetBasicStats(bitmap, manipulationInfo.AsRectangle());
+            return GetBasicStats(bitmap, manipulationInfo.Rectangle);
         }
 
         private BasicStats GetBasicStats(FastBitmap.FastBitmap bitmap, Rectangle sourceRectangle)
