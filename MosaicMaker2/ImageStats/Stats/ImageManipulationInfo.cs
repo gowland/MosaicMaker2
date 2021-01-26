@@ -1,21 +1,33 @@
 ﻿using System;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 
 namespace ImageStats.Stats
 {
     [Serializable]
     public struct ImageManipulationInfo
     {
+        private Rectangle? _rect;
+
         public ImageManipulationInfo(int startX, int startY, int width, int height)
         {
-            Rectangle = new Rectangle(startX, startY, width, height);
+            StartX = startX;
+            StartY = startY;
+            Width = width;
+            Height = height;
+            _rect = new Rectangle(StartX, StartY, Width, Height);
         }
 
-        public int StartX => Rectangle.X;
-        public int StartY => Rectangle.Y;
-        public int Width => Rectangle.Width;
-        public int Height => Rectangle.Height;
-        public Rectangle Rectangle { get; }
+        private Rectangle AsRectangle()
+        {
+            return new Rectangle(StartX, StartY, Width, Height);
+        }
+
+        public int StartX { get; set; }
+        public int StartY { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public Rectangle Rectangle => _rect ?? (_rect = AsRectangle()).Value;
 
         public override string ToString()
         {

@@ -2,15 +2,13 @@
 using System.Drawing;
 using System.Linq;
 using FastBitmap;
-using ImageStats.ArrayAdapters;
 using ImageStats.Stats;
-using ImageStats.Utils;
 
 namespace ImageStats
 {
     public class Class1
     {
-        private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
+        private readonly IImageLoader _loader = new IncrediblyInefficientImageLoader();
 
         private readonly StatsGenerator _statsGenerator;
         private MatchFinder _matchFinder;
@@ -18,7 +16,7 @@ namespace ImageStats
 
         public Class1(IImageLoader loader)
         {
-            Loader = loader;
+            _loader = loader;
             _statsGenerator = new StatsGenerator(loader);
         }
 
@@ -35,7 +33,7 @@ namespace ImageStats
 
         public void LoadSourceImage(string path)
         {
-            var bmp = Loader.LoadImageAsBitmap(path);
+            var bmp = _loader.LoadImageAsBitmap(path);
             BitmapAdapter adapter = new BitmapAdapter(bmp);
             var rects = _statsGenerator
                 .GetChunks(new Rectangle(0, 0, bmp.Width, bmp.Height))
@@ -51,33 +49,18 @@ namespace ImageStats
 
         public ImageAndStats GetSourceImage()
         {
-            // return _statsGenerator.ImagesAndStats.Random().First();
             return new ImageAndStats(_sourceImageStats.Image, _sourceImageStats.Segments);
         }
 
         public Bitmap GetBitmap(PhysicalImage physicalImage, ImageManipulationInfo manipulationInfo)
         {
-            return BitmapAdapter.FromPath(physicalImage.ImagePath, Loader)
+            return BitmapAdapter.FromPath(physicalImage.ImagePath, _loader)
                 .GetSegment(manipulationInfo);
-        }
-
-        public IEnumerable<Bitmap> CompareImageToAlphabet(PhysicalImage image, ImageManipulationInfo manipulationInfo)
-        {
-            return CompareImageToAlphabet(_statsGenerator.GetStats(image, manipulationInfo));
-        }
-
-        public IEnumerable<Bitmap> CompareImageToAlphabet(BasicStats origStats)
-        {
-            return _matchFinder.GetMatches(origStats).SelectMany(r =>
-            {
-                var img = BitmapAdapter.FromPath(r.Image.ImagePath, Loader);
-                return r.ManipulationInfos.Select(s => img.GetSegment(s));
-            });
         }
 
         public IEnumerable<Bitmap> GetRefinedMatches(PhysicalImage image, ImageManipulationInfo manipulationInfo)
         {
-            var bitmap = Loader.LoadImage(image.ImagePath);
+            var bitmap = _loader.LoadImage(image.ImagePath);
             return GetRefinedMatches(bitmap, manipulationInfo);
         }
 
@@ -85,7 +68,22 @@ namespace ImageStats
         {
             ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
             return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
-                    Loader, _statsGenerator)
+                    _loader, _statsGenerator)
+                .Select(m => new {Image = new BitmapAdapter(m.Image.ToBitmap()), Segments = m.ManipulationInfos})
+                .SelectMany(m => m.Segments.Select(m.Image.GetSegment));
+        }
+
+        public IEnumerable<Bitmap> GetRefinedMatches2(PhysicalImage image, ImageManipulationInfo manipulationInfo)
+        {
+            var bitmap = _loader.LoadImage(image.ImagePath);
+            return GetRefinedMatches2(bitmap, manipulationInfo);
+        }
+
+        public IEnumerable<Bitmap> GetRefinedMatches2(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
+        {
+            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
+            return _matchFinder.RefineMatches2(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
+                    _loader, _statsGenerator)
                 .Select(m => new {Image = new BitmapAdapter(m.Image.ToBitmap()), Segments = m.ManipulationInfos})
                 .SelectMany(m => m.Segments.Select(m.Image.GetSegment));
         }

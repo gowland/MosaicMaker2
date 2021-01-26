@@ -69,7 +69,7 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <ListBox Grid.Row="1" Grid.Column="4" ItemsSource="{Binding SelectedMatchingImages}">
+        <ListBox Grid.Row="1" Grid.Column="4" ItemsSource="{Binding RefinedMatchingImages2}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border BorderBrush="OrangeRed" BorderThickness="1">

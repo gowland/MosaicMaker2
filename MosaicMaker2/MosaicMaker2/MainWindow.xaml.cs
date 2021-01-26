@@ -51,6 +51,7 @@ namespace MosaicMaker2
         private static readonly ObservableCollection<BitmapImage> ConvolutionReducedObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> RefinedMatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
+        private static readonly ObservableCollection<BitmapImage> RefinedMatches2ObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private readonly Class1 class1;
         private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
 
@@ -62,6 +63,7 @@ namespace MosaicMaker2
             ConvolutionReducedImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionReducedObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
             RefinedMatchingImages = new ReadOnlyObservableCollection<BitmapImage>(RefinedMatchesObservableCollection);
+            RefinedMatchingImages2 = new ReadOnlyObservableCollection<BitmapImage>(RefinedMatches2ObservableCollection);
         }
 
         public void LoadIndex() => class1.LoadIndex();
@@ -113,8 +115,17 @@ namespace MosaicMaker2
                 RefinedMatchesObservableCollection.Add(matchedImage);
             }
 
+            var refinedMatchedImages2 = class1.GetRefinedMatches2(img.Image, randomSourceSegment)
+                .Select(i => i.ToBitmapImage());
+            RefinedMatches2ObservableCollection.Clear();
+            foreach (var matchedImage in refinedMatchedImages2)
+            {
+                RefinedMatches2ObservableCollection.Add(matchedImage);
+            }
+
             OnPropertyChanged(nameof(MatchingImages));
             OnPropertyChanged(nameof(RefinedMatchingImages));
+            OnPropertyChanged(nameof(RefinedMatchingImages2));
         }
 
         public void ProduceImage()
@@ -130,7 +141,7 @@ namespace MosaicMaker2
             foreach (var segmentAndStatse in img.Segments)
             {
                 // Get matches
-                var refinedMatchedImages = class1.GetRefinedMatches(originalImage, segmentAndStatse.ManipulationInfo);
+                var refinedMatchedImages = class1.GetRefinedMatches2(originalImage, segmentAndStatse.ManipulationInfo);
 
                 // Select a match
                 // TODO: Do better
@@ -155,6 +166,7 @@ namespace MosaicMaker2
         public ReadOnlyObservableCollection<BitmapImage> ConvolutionReducedImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> MatchingImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> RefinedMatchingImages { get; set; }
+        public ReadOnlyObservableCollection<BitmapImage> RefinedMatchingImages2 { get; set; }
         public BitmapImage SourceImage { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -126,13 +126,11 @@ namespace ImageStats
         public AdvancedStats GetAdvancedStats(FastBitmap.FastBitmap bitmap, Rectangle sourceRectangle)
         {
 
-            /*
             List<int> midResAngle45Points = new List<int>(48);
             List<int> midResAngle135Points = new List<int>(48);
             List<int> midResVerticalPoints = new List<int>(48);
             List<int> midResHorizontalPoints = new List<int>(48);
             List<int> midResEdgePoints = new List<int>(48);
-            */
 
             List<int> midResRPoints = new List<int>(48);
             List<int> midResGPoints = new List<int>(48);
@@ -145,30 +143,25 @@ namespace ImageStats
 
                 int[] greyScaleSegment = segment.Select(c => (int) ((c.R + c.G + c.B) / 3.0)).ToArray();
 
-                /*
                 midResAngle45Points.Add(ApplyFilter(greyScaleSegment, MidRes45Filter));
                 midResAngle135Points.Add(ApplyFilter(greyScaleSegment, MidRes135Filter));
                 midResVerticalPoints.Add(ApplyFilter(greyScaleSegment, MidResVerticalFilter));
                 midResHorizontalPoints.Add(ApplyFilter(greyScaleSegment, MidResHorizontalFilter));
                 midResEdgePoints.Add(ApplyFilter(greyScaleSegment, MidResEdgeFilter));
-                */
 
                 midResRPoints.Add(ApplyFilter(segment, c => c.R, ReduceIdentityFilter));
                 midResGPoints.Add(ApplyFilter(segment, c => c.G, ReduceIdentityFilter));
                 midResBPoints.Add(ApplyFilter(segment, c => c.B, ReduceIdentityFilter));
-                // midResIntensityPoints.Add(ApplyFilter(segment, c => (int) ((c.R + c.G + c.B) / 3.0), ReduceIdentityFilter));
                 midResIntensityPoints.Add(ApplyFilter(greyScaleSegment, ReduceIdentityFilter));
             }
 
             return new AdvancedStats()
             {
-                /*
                 MidRes45 = new ConvolutionResult(midResAngle45Points),
                 MidRes135 = new ConvolutionResult(midResAngle135Points),
                 MidResVertical = new ConvolutionResult(midResVerticalPoints),
                 MidResHorizontal = new ConvolutionResult(midResHorizontalPoints),
                 MidResEdge = new ConvolutionResult(midResEdgePoints),
-                */
 
                 MidResR = new ConvolutionResult(midResRPoints),
                 MidResG = new ConvolutionResult(midResGPoints),

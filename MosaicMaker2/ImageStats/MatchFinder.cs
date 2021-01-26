@@ -93,33 +93,43 @@ namespace ImageStats
                          +       m.Stats.MidResB.Difference(origStats.MidResB)
                          + 1.5 * m.Stats.MidResIntensity.Difference(origStats.MidResIntensity)
                          )
-                .Take(10)
+                // .Take(10)
+                .Take(1)
                 .GroupBy(m => m.ImagePath.ImagePath)
                 .Select(group => new BitmapAndSegments(group.First().Image, group.Select(i => i.ManipulationInfo)))
                 .ToArray();
         }
 
-        private IEnumerable<ImageAndStats> Filter(Stats.BasicStats origStats, IEnumerable<ImageAndStats> images, IFilter filter)
+        public BitmapAndSegments[] RefineMatches2(AdvancedStats origStats, ImageSegments[] basicMatches, IImageLoader loader, StatsGenerator statsGenerator)
         {
-            foreach (var replacement in images)
-            {
-                var matchingSegments = FilterSegments(origStats, replacement, filter).ToArray();
-                if (matchingSegments.Any())
+            return basicMatches.Select(m => new
                 {
-                    yield return new ImageAndStats(replacement.Image, matchingSegments);
-                }
-            }
-        }
-
-        private IEnumerable<SegmentAndStats> FilterSegments(Stats.BasicStats origStats, ImageAndStats imageAndStats, IFilter filter)
-        {
-            foreach (var replacement in imageAndStats.Segments)
-            {
-                if (filter.Compare(origStats, replacement.Stats).Passed)
+                    Image = m.Image,
+                    Bitmap = loader.LoadImage(m.Image.ImagePath),
+                    ManipulationInfos = m.ManipulationInfos
+                })
+                .SelectMany(m => m.ManipulationInfos.Select(r => new
                 {
-                    yield return replacement;
-                }
-            }
+                    ImagePath = m.Image,
+                    Image = m.Bitmap,
+                    Stats = statsGenerator.GetAdvancedStats(m.Bitmap, r.Rectangle),
+                    ManipulationInfo = r,
+                }))
+                .OrderBy(m =>
+                        m.Stats.MidResR.Difference(origStats.MidResR)
+                         + 1.1 * m.Stats.MidResG.Difference(origStats.MidResG)
+                         +       m.Stats.MidResB.Difference(origStats.MidResB)
+                         + 1.5 * m.Stats.MidResIntensity.Difference(origStats.MidResIntensity)
+                         + 1.1 * m.Stats.MidRes45.Difference(origStats.MidRes45)
+                         +       m.Stats.MidResHorizontal.Difference(origStats.MidResHorizontal)
+                         +       m.Stats.MidResVertical.Difference(origStats.MidResVertical)
+                         + 1.5 * m.Stats.MidResEdge.Difference(origStats.MidResEdge)
+                         )
+                // .Take(10)
+                .Take(1)
+                .GroupBy(m => m.ImagePath.ImagePath)
+                .Select(group => new BitmapAndSegments(group.First().Image, group.Select(i => i.ManipulationInfo)))
+                .ToArray();
         }
     }
 }
