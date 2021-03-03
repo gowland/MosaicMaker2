@@ -12,66 +12,36 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="2*" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Image Height="100" Width="100" Source="{Binding SourceImage}"/>
+        <Viewbox Grid.Row="0" Grid.Column="0" Height="200">
+            <Image Source ="{Binding SourceImage}"/>
+        </Viewbox>
 
-        <StackPanel Grid.Row="0" Grid.Column="1">
-            <Button x:Name="load">Load</Button>
-            <Button x:Name="build">Build</Button>
-            <Button x:Name="next">Next</Button>
+        <Viewbox Grid.Row="0" Grid.Column="1" Height="200">
+            <Image Source ="{Binding ResultImage}"/>
+        </Viewbox>
+
+        <StackPanel Grid.Row="0" Grid.Column="2">
+            <Button x:Name="load">Load index</Button>
+            <Button x:Name="build">Build mosaic</Button>
+            <Button x:Name="next">Next segment</Button>
             <Rectangle Fill="Aquamarine" Height="2" Width="100" Margin="0,5"/>
-            <Button x:Name="create">Create</Button>
+            <Button x:Name="create">Create index</Button>
         </StackPanel>
 
-        <ListBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding ConvolutionImages}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="OrangeRed" BorderThickness="1">
-                        <Image Height="100" Width="100" Source="{Binding}"/>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <ListBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding ConvolutionReducedImages}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="OrangeRed" BorderThickness="1">
-                        <Image Height="100" Width="100" Source="{Binding}"/>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <ListBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding MatchingImages}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="OrangeRed" BorderThickness="1">
-                        <Image Height="100" Width="100" Source="{Binding}"/>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <ListBox Grid.Row="1" Grid.Column="3" ItemsSource="{Binding RefinedMatchingImages}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Border BorderBrush="OrangeRed" BorderThickness="1">
-                        <Image Height="100" Width="100" Source="{Binding}"/>
-                    </Border>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <ScrollViewer Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4">
+            <Image x:Name="ResultImage" Source ="{Binding ResultImage}"/>
+        </ScrollViewer>
 
         <ListBox Grid.Row="1" Grid.Column="4" ItemsSource="{Binding RefinedMatchingImages2}">
             <ListBox.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate DataType="ListItem">
                     <Border BorderBrush="OrangeRed" BorderThickness="1">
                         <Image Height="100" Width="100" Source="{Binding}"/>
                     </Border>

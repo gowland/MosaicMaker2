@@ -120,10 +120,13 @@ namespace ImageStats
                          + 1.1 * m.Stats.MidResG.Difference(origStats.MidResG)
                          +       m.Stats.MidResB.Difference(origStats.MidResB)
                          + 1.5 * m.Stats.MidResIntensity.Difference(origStats.MidResIntensity)
-                         + 1.1 * m.Stats.MidRes45.Difference(origStats.MidRes45)
-                         +       m.Stats.MidResHorizontal.Difference(origStats.MidResHorizontal)
-                         +       m.Stats.MidResVertical.Difference(origStats.MidResVertical)
-                         + 1.5 * m.Stats.MidResEdge.Difference(origStats.MidResEdge)
+                         +
+                             ( 1.3 * m.Stats.MidRes45.Difference(origStats.MidRes45)
+                             + 1.3 * m.Stats.MidRes135.Difference(origStats.MidRes135)
+                             +       m.Stats.MidResHorizontal.Difference(origStats.MidResHorizontal)
+                             +       m.Stats.MidResVertical.Difference(origStats.MidResVertical)
+                             + 1.5 * m.Stats.MidResEdge.Difference(origStats.MidResEdge)
+                             ) * 0.5
                          )
                 // .Take(10)
                 .Take(1)

@@ -51,7 +51,7 @@ namespace ImageStats
 
         public IEnumerable<Rectangle> GetSegmentRectangles(Rectangle source)
         {
-            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 5, 5);
+            var regionCreationStrategy = new FixedSizeRegionCreationStrategy(40,30, 3, 3); // Smaller since movie stills aren't an even 5
             return regionCreationStrategy.GetRegions(source);
         }
 
@@ -81,7 +81,7 @@ namespace ImageStats
 
         public BasicStats GetStats(BitmapAdapter bitmap, ImageManipulationInfo manipulationInfo)
         {
-            Console.WriteLine(manipulationInfo.ToString());
+            // Console.WriteLine(manipulationInfo.ToString());
             var fast = new FastBitmap.FastBitmap(bitmap.GetSegment(manipulationInfo));
             return GetBasicStats(fast, new Rectangle(0,0,fast.Width, fast.Height));
         }
@@ -197,7 +197,9 @@ namespace ImageStats
         private ImageAndStats GetMatchableSegments(PhysicalImage physicalImage)
         {
             var img = _loader.LoadImage(physicalImage.ImagePath);
-            IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
+            // For movie stills with widescreen bars above/below, start further down and end higher up
+            IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(6, 6, img.Width - 12, img.Height - 12));
+            // IEnumerable<Rectangle> rects = GetSegmentRectangles(new Rectangle(0, 0, img.Width, img.Height));
             var segmentStats = new List<SegmentAndStats>();
             foreach (var rectangle in rects)
             {
@@ -234,12 +236,14 @@ namespace ImageStats
             ImagesAndStats = alphabet.ImagesAndStats;
         }
 
-        private const string PathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
+        private const string PathToAlphabet = @"c:\src\MosaicMaker2\star_wars";
+        // private const string PathToAlphabet = @"c:\src\MosaicMaker2\Alphabet";
         private const string IndexFileName = @"segment_stats.json";
 
         private IEnumerable<PhysicalImage> GetFiles(string path)
         {
-            foreach (string file in Directory.EnumerateFiles(path, "*.bmp", SearchOption.AllDirectories)) // TODO: Handle other image types
+            foreach (string file in Directory.EnumerateFiles(path, "*.png", SearchOption.AllDirectories))
+            // foreach (string file in Directory.EnumerateFiles(path, "*.bmp|*.png|*.jpg", SearchOption.AllDirectories))
             {
                 yield return new PhysicalImage(file);
             }

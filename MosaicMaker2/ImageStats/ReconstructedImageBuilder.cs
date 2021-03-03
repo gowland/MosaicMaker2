@@ -20,6 +20,8 @@ namespace ImageStats
             _newImage = new Bitmap(target.Width, target.Height);
         }
 
+        public Bitmap NewImage => _newImage;
+
         public void SaveAs(string path)
         {
             _newImage.Save(path);
@@ -37,7 +39,7 @@ namespace ImageStats
 
         private void WriteSourceAndFill(SourceAndMatch match)
         {
-            var fillImage = new FastBitmap.FastBitmap(match.ReplacementImage);
+            FastBitmap.FastBitmap fillImage = new FastBitmap.FastBitmap(match.ReplacementImage);
 
             fillImage.Lock();
 

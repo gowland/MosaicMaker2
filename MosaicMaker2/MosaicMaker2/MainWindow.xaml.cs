@@ -23,6 +23,7 @@ using FastBitmap;
 using ImageStats;
 using ImageStats.Stats;
 using ImageStats.Utils;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace MosaicMaker2
 {
@@ -38,10 +39,11 @@ namespace MosaicMaker2
             InitializeComponent();
             _mainWindowViewModel = new MainWindowViewModel();
             DataContext = _mainWindowViewModel;
-            next.Click += (sender, args) => _mainWindowViewModel.DumpStats();
+            // next.Click += (sender, args) => _mainWindowViewModel.DumpStats();
             load.Click += (sender, args) => _mainWindowViewModel.LoadIndex();
             create.Click += (sender, args) => _mainWindowViewModel.CreateIndex();
             build.Click += (sender, args) => _mainWindowViewModel.ProduceImage();
+            ResultImage.MouseDown += (sender, args) => MessageBox.Show($"{args.GetPosition(ResultImage).X},{args.GetPosition(ResultImage).Y}");
         }
     }
 
@@ -52,13 +54,17 @@ namespace MosaicMaker2
         private static readonly ObservableCollection<BitmapImage> MatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> RefinedMatchesObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
         private static readonly ObservableCollection<BitmapImage> RefinedMatches2ObservableCollection = new ObservableCollection<BitmapImage>(new List<BitmapImage>());
-        private readonly Class1 class1;
+        private readonly Class1 _class1;
         private readonly IImageLoader Loader = new IncrediblyInefficientImageLoader();
+        private BitmapImage _sourceImage;
+        private BitmapImage _resultImage;
 
         public MainWindowViewModel()
         {
-            class1 = new Class1(Loader);
-            class1.LoadSourceImage(@"C:\src\MosaicMaker2\20201224_214836_tiny.bmp");
+            _class1 = new Class1(Loader);
+            // class1.LoadSourceImage(@"C:\src\MosaicMaker2\20201224_214836_small.bmp");
+            // class1.LoadSourceImage(@"C:\src\MosaicMaker2\20201224_214836_bw.jpg");
+            // _class1.LoadSourceImage(@"C:\src\MosaicMaker2\train_grey.jpg");
             ConvolutionImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionObservableCollection);
             ConvolutionReducedImages = new ReadOnlyObservableCollection<BitmapImage>(ConvolutionReducedObservableCollection);
             MatchingImages = new ReadOnlyObservableCollection<BitmapImage>(MatchesObservableCollection);
@@ -66,15 +72,16 @@ namespace MosaicMaker2
             RefinedMatchingImages2 = new ReadOnlyObservableCollection<BitmapImage>(RefinedMatches2ObservableCollection);
         }
 
-        public void LoadIndex() => class1.LoadIndex();
-        public void CreateIndex() => class1.CreateIndex();
+        public void LoadIndex() => _class1.LoadIndex();
+        public void CreateIndex() => _class1.CreateIndex();
 
+        /*
         public void DumpStats()
         {
-            var img = class1.GetSourceImage();
+            var img = _class1.GetSourceImage();
 
             var randomSourceSegment = img.Segments.Random().First().ManipulationInfo;
-            SourceImage = class1.GetBitmap(img.Image, randomSourceSegment).ToBitmapImage();
+            SourceImage = _class1.GetBitmap(img.Image, randomSourceSegment).ToBitmapImage();
             OnPropertyChanged(nameof(SourceImage));
 
             // StatsGenerator statsGenerator = new StatsGenerator(Loader);
@@ -94,7 +101,7 @@ namespace MosaicMaker2
             {
                 ConvolutionReducedObservableCollection.Add(convolutionImage);
             }
-            */
+            #1#
 
             /*
             var matchedImages = class1.CompareImageToAlphabet(img.Image, firstSegment)
@@ -104,10 +111,10 @@ namespace MosaicMaker2
             {
                 MatchesObservableCollection.Add(matchedImage);
             }
-            */
+            #1#
 
 
-            var refinedMatchedImages = class1.GetRefinedMatches(img.Image, randomSourceSegment)
+            var refinedMatchedImages = _class1.GetRefinedMatches(img.Image, randomSourceSegment)
                 .Select(i => i.ToBitmapImage());
             RefinedMatchesObservableCollection.Clear();
             foreach (var matchedImage in refinedMatchedImages)
@@ -115,7 +122,7 @@ namespace MosaicMaker2
                 RefinedMatchesObservableCollection.Add(matchedImage);
             }
 
-            var refinedMatchedImages2 = class1.GetRefinedMatches2(img.Image, randomSourceSegment)
+            var refinedMatchedImages2 = _class1.GetRefinedMatches2(img.Image, randomSourceSegment)
                 .Select(i => i.ToBitmapImage());
             RefinedMatches2ObservableCollection.Clear();
             foreach (var matchedImage in refinedMatchedImages2)
@@ -127,10 +134,21 @@ namespace MosaicMaker2
             OnPropertyChanged(nameof(RefinedMatchingImages));
             OnPropertyChanged(nameof(RefinedMatchingImages2));
         }
+        */
 
         public void ProduceImage()
         {
-            var img = class1.GetSourceImage();
+            var openFileDialog1 = new OpenFileDialog();
+            var dialogResult = openFileDialog1.ShowDialog();
+            if (!dialogResult.HasValue  || !dialogResult.Value)
+            {
+                return;
+            }
+
+            var sourceBmp = _class1.LoadSourceImage(openFileDialog1.FileName);
+            SourceImage = sourceBmp.ToBitmapImage();
+
+            var img = _class1.GetSourceImage();
             FastBitmap.FastBitmap originalImage = Loader.LoadImage(img.Image.ImagePath);
 
             ConvolutionObservableCollection.Clear();
@@ -141,12 +159,12 @@ namespace MosaicMaker2
             foreach (var segmentAndStatse in img.Segments)
             {
                 // Get matches
-                var refinedMatchedImages = class1.GetRefinedMatches2(originalImage, segmentAndStatse.ManipulationInfo);
+                var refinedMatchedImages = _class1.GetRefinedMatches2(originalImage, segmentAndStatse.ManipulationInfo);
 
                 // Select a match
                 // TODO: Do better
-                // var bestMatch = refinedMatchedImages.SelectRandom();
-                var bestMatch = refinedMatchedImages.First();
+                var bestMatch = refinedMatchedImages.SelectRandom();
+                // var bestMatch = refinedMatchedImages.First();
 
                 var match = new SourceAndMatch(segmentAndStatse.ManipulationInfo, bestMatch);
                 matches.Add(match);
@@ -155,6 +173,8 @@ namespace MosaicMaker2
             var newImageBuilder = new ReconstructedImageBuilder(originalImage, 0.75);
             newImageBuilder.ApplyMatches(matches);
             newImageBuilder.SaveAs(@"c:\src\MosaicMaker2\result.bmp");
+
+            ResultImage = newImageBuilder.NewImage.ToBitmapImage();
         }
 
         private void DumpArr(int[] arr)
@@ -167,7 +187,26 @@ namespace MosaicMaker2
         public ReadOnlyObservableCollection<BitmapImage> MatchingImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> RefinedMatchingImages { get; set; }
         public ReadOnlyObservableCollection<BitmapImage> RefinedMatchingImages2 { get; set; }
-        public BitmapImage SourceImage { get; set; }
+
+        public BitmapImage SourceImage
+        {
+            get => _sourceImage;
+            set
+            {
+                _sourceImage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public BitmapImage ResultImage
+        {
+            get => _resultImage;
+            set
+            {
+                _resultImage = value;
+                OnPropertyChanged();
+            }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 

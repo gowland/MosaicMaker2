@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using FastBitmap;
@@ -11,13 +12,14 @@ namespace ImageStats
         private readonly IImageLoader _loader = new IncrediblyInefficientImageLoader();
 
         private readonly StatsGenerator _statsGenerator;
-        private MatchFinder _matchFinder;
+        private readonly Lazy<MatchFinder> _matchFinder;
         private ImageAndStats _sourceImageStats;
 
         public Class1(IImageLoader loader)
         {
             _loader = loader;
             _statsGenerator = new StatsGenerator(loader);
+            _matchFinder = new Lazy<MatchFinder>(() => new MatchFinder(new Alphabet(_statsGenerator.ImagesAndStats)));
         }
 
         public void CreateIndex()
@@ -28,12 +30,11 @@ namespace ImageStats
         public void LoadIndex()
         {
             _statsGenerator.LoadIndex();
-            _matchFinder = new MatchFinder(new Alphabet(_statsGenerator.ImagesAndStats));
         }
 
-        public void LoadSourceImage(string path)
+        public Bitmap LoadSourceImage(string path)
         {
-            var bmp = _loader.LoadImageAsBitmap(path);
+            Bitmap bmp = _loader.LoadImageAsBitmap(path);
             BitmapAdapter adapter = new BitmapAdapter(bmp);
             var rects = _statsGenerator
                 .GetChunks(new Rectangle(0, 0, bmp.Width, bmp.Height))
@@ -45,6 +46,8 @@ namespace ImageStats
                     .Select(r => new SegmentAndStats(r,  _statsGenerator.GetStats(adapter, r)))
                     .ToArray()
                 );
+
+            return bmp;
         }
 
         public ImageAndStats GetSourceImage()
@@ -66,8 +69,8 @@ namespace ImageStats
 
         public IEnumerable<Bitmap> GetRefinedMatches(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
         {
-            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
-            return _matchFinder.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
+            ImageSegments[] matches = _matchFinder.Value.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
+            return _matchFinder.Value.RefineMatches(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
                     _loader, _statsGenerator)
                 .Select(m => new {Image = new BitmapAdapter(m.Image.ToBitmap()), Segments = m.ManipulationInfos})
                 .SelectMany(m => m.Segments.Select(m.Image.GetSegment));
@@ -81,8 +84,8 @@ namespace ImageStats
 
         public IEnumerable<Bitmap> GetRefinedMatches2(FastBitmap.FastBitmap bitmap, ImageManipulationInfo manipulationInfo)
         {
-            ImageSegments[] matches = _matchFinder.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
-            return _matchFinder.RefineMatches2(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
+            ImageSegments[] matches = _matchFinder.Value.GetMatches(_statsGenerator.GetStats(bitmap, manipulationInfo));
+            return _matchFinder.Value.RefineMatches2(_statsGenerator.GetAdvancedStats(bitmap, manipulationInfo.Rectangle), matches,
                     _loader, _statsGenerator)
                 .Select(m => new {Image = new BitmapAdapter(m.Image.ToBitmap()), Segments = m.ManipulationInfos})
                 .SelectMany(m => m.Segments.Select(m.Image.GetSegment));
